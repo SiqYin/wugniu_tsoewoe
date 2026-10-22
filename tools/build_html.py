@@ -29,8 +29,11 @@ CSS = r"""
 --sys:#1a5276; --sys2:#1a6da2;
 --warn:#c0392b; --warnbg:#fdf0f0;
 --ok:#2e7d4f; --okbg:#eef7f1;
---gold:#8a6d1c; --goldbg:#fdf8ef;
---sep:#d9a441;
+/* 全站一律藍色系（與字音站、韻圖站一致）；不再使用黃／棕／金 */
+--sel:#2980b9;        /* 選中／強調 */
+--selbg:#e8f0f8;      /* 選中底色（淺藍） */
+--selbg2:#eaf3fb;     /* 選中底色（更淺） */
+--selbg3:#f0f6fc;     /* 選中底色（最淺） */
 --segbar:#16324f;   /* 分詞小豎槓：深藍黑（與 --sys 同色系但更深） */
 --segbar-hi:#1a5276;
 }
@@ -81,17 +84,17 @@ border:1px solid var(--line);border-radius:6px;padding:7px 16px;cursor:pointer;t
 .modes .sep{width:1px;background:var(--line);margin:2px 4px}
 .modes{position:relative}
 .mode-btn.huhe{display:flex;align-items:center;gap:4px}
-.mode-btn.huhe #huheCur{font-weight:400;color:var(--gold);font-size:13px}
-.mode-btn.huhe.on{background:var(--sep);border-color:var(--sep);color:#fff}
-.mode-btn.huhe.on #huheCur{color:#fff9e6}
+.mode-btn.huhe #huheCur{font-weight:400;color:var(--sel);font-size:13px}
+.mode-btn.huhe.on{background:var(--sel);border-color:var(--sel);color:#fff}
+.mode-btn.huhe.on #huheCur{color:var(--selbg3)}
 .huhe-menu{display:none;position:absolute;top:100%;left:0;margin-top:4px;z-index:120;
 background:#fff;border:1px solid var(--line);border-radius:6px;
 box-shadow:0 4px 14px rgba(26,82,118,.13);overflow:hidden;min-width:150px}
 .huhe-menu.on{display:block}
 .huhe-menu button{display:block;width:100%;text-align:left;font-family:inherit;font-size:13.5px;
 padding:7px 14px;background:none;border:0;cursor:pointer;color:var(--ink)}
-.huhe-menu button:hover{background:var(--goldbg)}
-.huhe-menu button.on{background:var(--goldbg);color:var(--gold);font-weight:700}
+.huhe-menu button:hover{background:var(--selbg)}
+.huhe-menu button.on{background:var(--selbg);color:var(--sel);font-weight:700}
 
 textarea#src{
 width:100%;min-height:120px;resize:vertical;font-family:inherit;font-size:16px;
@@ -146,7 +149,23 @@ border:1px solid var(--line);border-radius:6px;padding:8px 16px;cursor:pointer}
 
 #out{display:none}
 #out.on{display:block}
-.sent{margin:0 0 20px;padding:0 0 16px;border-bottom:1px dashed var(--line)}
+.sent{margin:0 0 20px;padding:0 0 16px;border-bottom:1px dashed var(--line);position:relative}
+.sent .sentcopy{position:absolute;top:0;right:0;font-family:inherit;font-size:11.5px;
+color:var(--ink3);background:#fff;border:1px solid var(--line2);border-radius:5px;
+padding:1px 8px;cursor:pointer;opacity:0;transition:opacity .15s,color .15s,background .15s}
+.sent:hover .sentcopy{opacity:1}
+.sent .sentcopy:hover{background:var(--yin);color:var(--sys);border-color:var(--yinb)}
+.sent .sentcopy.done{background:var(--okbg);color:var(--ok);border-color:#bfe0cd;opacity:1}
+/* 底部複製列 */
+.outbar{display:flex;gap:10px;justify-content:space-between;align-items:center;
+margin-top:16px;padding-top:14px;border-top:1px solid var(--line2);flex-wrap:wrap}
+.outbar .ob-left,.outbar .ob-right{display:flex;gap:8px}
+.outbar button{font-family:inherit;font-size:13.5px;border-radius:6px;padding:8px 18px;
+cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink2);transition:.15s}
+.outbar button:hover{background:var(--yin);color:var(--sys);border-color:var(--yinb)}
+.outbar .primary{background:var(--yinb);border-color:var(--yinb);color:#fff;font-weight:700}
+.outbar .primary:hover{background:var(--sys2);color:#fff}
+.outbar button.done{background:var(--okbg);color:var(--ok);border-color:#bfe0cd}
 .sent:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
 .sent .no{display:inline-block;font-size:11.5px;color:var(--ink3);
 border:1px solid var(--line2);border-radius:10px;padding:0 7px;margin-right:8px;vertical-align:2px}
@@ -162,7 +181,7 @@ padding:0 1px;transition:.12s;white-space:pre}
 .tok.var::after{content:"";position:absolute;left:1px;right:1px;bottom:-1px;height:2px;
 background:var(--warn);border-radius:1px;opacity:.7}
 .tok.unk{color:var(--ink3);text-decoration:underline dotted var(--ink3)}
-.tok.picked{background:#fff3d6;box-shadow:inset 0 0 0 1px var(--sep)}
+.tok.picked{background:var(--selbg2);box-shadow:inset 0 0 0 1px var(--sel)}
 .tokword{display:inline-block;margin-right:.34em}
 .punct-tok{color:var(--ink2);cursor:default;white-space:pre}
 .punct-tok:hover{background:none}
@@ -182,13 +201,13 @@ line-height:1;padding:2px 6px;border-radius:4px}
 #pop .row{display:flex;gap:10px;padding:8px 14px;cursor:pointer;align-items:baseline;
 border-left:3px solid transparent;flex-wrap:wrap}
 #pop .row:hover{background:var(--yin)}
-#pop .row.sel{background:#fff3d6;border-left-color:var(--sep)}
+#pop .row.sel{background:var(--selbg2);border-left-color:var(--sel)}
 #pop .row .syl{font-size:16px;color:var(--sys);font-weight:700;min-width:76px}
 #pop .row .ipa{color:var(--ink2);font-size:14px;min-width:92px}
 #pop .row .pos{font-size:12.5px;color:var(--ink2);background:#f4f8fd;border:1px solid var(--line2);
 border-radius:4px;padding:1px 7px;white-space:nowrap}
 #pop .row .note{font-size:12.5px;color:var(--ink3);flex-basis:100%}
-#pop .row .chtag{font-size:12.5px;color:var(--gold);flex-basis:100%}
+#pop .row .chtag{font-size:12.5px;color:var(--sys2);flex-basis:100%}
 #pop .noread{padding:14px;color:var(--ink3);font-size:13.5px}
 
 .notebar{margin-top:10px;font-size:13px;color:var(--ink2);background:#f4f8fd;
@@ -275,7 +294,6 @@ BODY = r"""
     <div class="actions">
       <button class="go" id="btnGo" onclick="doConvert()"></button>
       <button class="ghost" id="btnClear" onclick="doClear()"></button>
-      <button class="ghost" id="btnCopy" onclick="doCopy()" style="display:none"></button>
       <span class="hint" id="i-hint"></span>
     </div>
     <div class="notebar" id="segHint" style="display:none"></div>
@@ -359,6 +377,8 @@ wu:{
   huhe:'河湖韻處理', huhe_default:'蘇滬混合腔默認', huhe_hu:'全走湖韻', huhe_he:'全走河韻',
   huhe_hint:'湖韻〔uᵝ〕與河韻〔əuᵝ〕是同一個音位的兩個音值變體。此設定優先於逐字默認音。',
   confirm:'確認', cancel:'取消',
+  copy_line:'複製', copy_all:'複製全文', copy_py:'複製全部拼音',
+  copy_done:'已複製',
   seg_add_q:'在此加分詞？', seg_del_q:'刪除這條分詞？',
   seg_hint2:'拖動小豎槓可移動；右鍵刪除；點字與字之間可加分詞。',
   footer:'字音資料來自 <a href="https://siqyin.github.io/wugniu_zyinzozin/" target="_blank" rel="noopener">吳語字音查詢</a>；韻圖位置標記來自 <a href="https://siqyin.github.io/wugniu_yundu/" target="_blank" rel="noopener">蘇滬混合腔韻圖</a>。本頁不自行推導字音。'
@@ -383,6 +403,8 @@ en:{
   huhe:'Hu/He finals', huhe_default:'Su-Hu default', huhe_hu:'All Hu', huhe_he:'All He',
   huhe_hint:'Hu [uᵝ] and He [əuᵝ] are free variants of one phoneme. This overrides per-character defaults.',
   confirm:'Confirm', cancel:'Cancel',
+  copy_line:'Copy', copy_all:'Copy all', copy_py:'Copy romanization',
+  copy_done:'Copied',
   seg_add_q:'Add a word break here?', seg_del_q:'Delete this word break?',
   seg_hint2:'Drag a bar to move it, right-click to delete, click between characters to add.',
   footer:'Readings from <a href="https://siqyin.github.io/wugniu_zyinzozin/" target="_blank" rel="noopener">Wu pronunciation lookup</a>; rhyme-chart positions from <a href="https://siqyin.github.io/wugniu_yundu/" target="_blank" rel="noopener">the Su-Hu rhyme chart</a>. Nothing is derived on this page.'
@@ -407,6 +429,8 @@ ja:{
   huhe:'湖韻／河韻の扱い', huhe_default:'蘇滬混合腔デフォルト', huhe_hu:'全て湖韻', huhe_he:'全て河韻',
   huhe_hint:'湖韻〔uᵝ〕と河韻〔əuᵝ〕は同一音素の自由変異です。この設定は字ごとの既定読みより優先されます。',
   confirm:'確認', cancel:'キャンセル',
+  copy_line:'コピー', copy_all:'全文コピー', copy_py:'ローマ字をコピー',
+  copy_done:'コピーしました',
   seg_add_q:'ここに分かち書きを追加しますか？', seg_del_q:'この分かち書きを削除しますか？',
   seg_hint2:'縦線をドラッグで移動、右クリックで削除、文字間をクリックで追加。',
   footer:'字音は<a href="https://siqyin.github.io/wugniu_zyinzozin/" target="_blank" rel="noopener">吳語字音查詢</a>、韻図位置は<a href="https://siqyin.github.io/wugniu_yundu/" target="_blank" rel="noopener">蘇滬混合腔韻圖</a>より。本ページでは推導しません。'
@@ -630,11 +654,17 @@ function resolve(ch,idx,wordHint){
   /* 河湖韻規範化：優先級高於逐字默認音 —— 原型先按規則選出，再規範化 */
   var shown=normHuhe(rd[0]);
   var shownIpa=ipaOf(shown, rd[0]);
+  /* 標紅的唯一判據：**存在不止一個可能的讀音**。
+     · 多音字：同一個字有多條讀音 → 標紅
+     · 一簡多繁：一個簡體對應多個繁體，各繁體又有各自的讀音 → 等於有多個可能的音 → 標紅
+     · 一簡一繁且該繁體只有一個讀音 → 只有唯一讀音 → **不標紅**
+     所以不能拿「本字被折成繁體」當判據（槍→槍、來→來 這種只有唯一音，誤標了）。 */
+  var totalPossible = 0;
+  for(var ci2=0; ci2<cands.length; ci2++){ totalPossible += cands[ci2].readings.length; }
   return {ok:true,ch:cands[ci].ch,ci:ci,ri:ri,readings:rs,cands:cands,
           syl:shown, origSyl:rd[0], ipa:shownIpa,
           note:rd[2]||'',
-          /* 標紅條件：多個繁體候選、多個讀音，或本字被折成繁體 */
-          multi:(cands.length>1 || rs.length>1 || cands[ci].converted===true)};
+          multi:(totalPossible > 1)};
 }
 
 /* ============================ 河湖韻規範化 ============================
@@ -1021,7 +1051,6 @@ function doConvert(){
   /* #out 的 CSS 是 display:none，必須加上 .on 才會顯示 —— 否則內容生成了卻是空白 */
   outEl.classList.add('on');
   document.getElementById('outSec').style.display='block';
-  document.getElementById('btnCopy').style.display='inline-block';
 
   var gIdx=0, unknowns=[], varCount=0;
 
@@ -1148,6 +1177,99 @@ function doConvert(){
     nb.innerHTML=tips.join('<br>');
     outEl.appendChild(nb);
   }
+
+  /* 每句右側的複製鈕 */
+  Array.prototype.forEach.call(outEl.querySelectorAll('.sent'), function(div){
+    var btn=document.createElement('button');
+    btn.className='sentcopy';
+    btn.textContent=t('copy_line');
+    btn.onclick=function(ev){ ev.stopPropagation(); copySentence(div, btn); };
+    div.appendChild(btn);
+  });
+
+  /* 底部複製列：左「複製全文」，右「複製全部拼音」 */
+  var bar=document.createElement('div');
+  bar.className='outbar';
+  bar.innerHTML='<div class="ob-left"><button class="primary" id="copyAll">'
+    + esc(t('copy_all')) + '</button></div>'
+    + '<div class="ob-right"><button id="copyPy">' + esc(t('copy_py')) + '</button></div>';
+  outEl.appendChild(bar);
+  bar.querySelector('#copyAll').onclick=function(){ copyFull(this); };
+  bar.querySelector('#copyPy').onclick=function(){ copyPinyinOnly(this); };
+}
+
+/* ============================ 複製 ============================
+   格式固定為「一行漢字、一行拼音」，保留換行。
+   資料直接從已渲染的 DOM 取，確保反映使用者當場選定的字音。
+   ------------------------------------------------------------------- */
+function sentenceText(div){
+  var han=div.querySelector('.hanline');
+  var py=div.querySelector('.pyline');
+  var lines=[];
+  if(han) lines.push(han.innerText.replace(/\u00a0/g,' ').trim());
+  if(py) lines.push(py.innerText.replace(/\u00a0/g,' ').trim());
+  /* 「僅拼音」模式沒有漢字行，就只有拼音 */
+  return lines.filter(function(x){ return x.length>0; }).join('\n');
+}
+
+function copySentence(div, btn){
+  var txt=sentenceText(div);
+  doCopyText(txt, function(){ flashBtn(btn, t('copy_done')); });
+}
+
+function copyFull(btn){
+  var out=document.getElementById('out');
+  var parts=[];
+  Array.prototype.forEach.call(out.querySelectorAll('.sent'), function(div){
+    var t1=sentenceText(div);
+    if(t1) parts.push(t1);
+  });
+  /* 句子之間空一行，符合「一行字一行拼音」的閱讀節奏 */
+  doCopyText(parts.join('\n\n'), function(){ flashBtn(btn, t('copy_done')); });
+}
+
+function copyPinyinOnly(btn){
+  var out=document.getElementById('out');
+  var lines=[];
+  Array.prototype.forEach.call(out.querySelectorAll('.sent'), function(div){
+    var py=div.querySelector('.pyline');
+    if(py){
+      var txt=py.innerText.replace(/\u00a0/g,' ').trim();
+      if(txt) lines.push(txt);
+    }
+  });
+  doCopyText(lines.join('\n'), function(){ flashBtn(btn, t('copy_done')); });
+}
+
+function flashBtn(btn, label){
+  if(!btn) return;
+  var old=btn.textContent;
+  btn.classList.add('done');
+  btn.textContent=label;
+  setTimeout(function(){ btn.classList.remove('done'); btn.textContent=old; }, 1400);
+}
+
+function doCopyText(txt, onOk){
+  if(!txt){ alertBox(t('nocopy')); return; }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(onOk).catch(function(){ legacyCopy(txt, onOk); });
+  }else{
+    legacyCopy(txt, onOk);
+  }
+}
+
+/* 舊瀏覽器／非安全上下文的回退 */
+function legacyCopy(txt, onOk){
+  try{
+    var ta=document.createElement('textarea');
+    ta.value=txt;
+    ta.style.position='fixed'; ta.style.left='-9999px'; ta.style.top='0';
+    document.body.appendChild(ta);
+    ta.select();
+    var ok=document.execCommand('copy');
+    document.body.removeChild(ta);
+    if(ok && onOk) onOk(); else alertBox(t('nocopy'));
+  }catch(e){ alertBox(t('nocopy')); }
 }
 
 /* 依全域索引取字 */
@@ -1278,18 +1400,7 @@ function doClear(){
   outEl.dataset.done='';
   outEl.classList.remove('on');   /* 清空時要一併移除 .on，否則下次轉換前的空狀態仍是 display:block */
   document.getElementById('outSec').style.display='none';
-  document.getElementById('btnCopy').style.display='none';
 }
-function doCopy(){
-  var txt=document.getElementById('out').innerText.trim();
-  if(!txt){ alertBox(t('nocopy')); return; }
-  navigator.clipboard.writeText(txt).then(function(){
-    var b=document.getElementById('btnCopy'), old=b.textContent;
-    b.textContent=t('copied');
-    setTimeout(function(){ b.textContent=old; },1400);
-  }).catch(function(){ alertBox(t('nocopy')); });
-}
-
 document.getElementById('src').addEventListener('input',function(){
   var v=this.value;
   if(v!==lastText){ seps=null; picks={}; }

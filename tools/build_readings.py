@@ -55,6 +55,7 @@ OVERRIDE = {
     "個": "ku5",    # 個：讀 ku5（再經河湖韻規範化 → 混合腔默認顯示 kou5）
     "許": "shiu3",  # 一般情況默認（幾許／場許／裏許→ho5，在許→he3，見②）
     "混": "wen6",   # 使用者指定（DB 首音 huen5）
+    "月": "gniuq8", # 使用者指定：推薦白讀（DB 首音是文讀 yuq8）
 }
 
 # ------------------------------------------------------------------ ② 詞內特例
@@ -174,17 +175,29 @@ def main():
     print("詞庫讀入:", len(word_codes), "條")
 
     # ---------------- ① 逐字預設音 ----------------
+    # 規則（使用者 2026-10-22）：註記為「上海又音」的讀音一律不作為默認輸出音。
+    # 實測有 68 條這種讀音；絕大多數本來就排在後面，但「揣」「堪」等字的 DB 首音
+    # 恰好帶此註記，必須往後找第一個「非上海又音」的讀音。
+    def is_sh_again(note):
+        return "上海又音" in (note or "")
+
     defaults = {}
     report = {}
     for ch, rs in chars.items():
         order = [r[0] for r in rs]
+        # 候選池：排除「上海又音」
+        pool = [r[0] for r in rs if not is_sh_again(r[2] if len(r) > 2 else "")]
+        if not pool:
+            pool = order           # 全部都是上海又音時只好照舊
+
         if ch in OVERRIDE and OVERRIDE[ch] in order:
             chosen, src = OVERRIDE[ch], "override"
         else:
-            chosen, src = order[0], ("db-order" if len(order) > 1 else "single")
+            chosen, src = pool[0], ("db-order" if len(pool) > 1 else "single")
         defaults[ch] = chosen
         if len(order) > 1:
-            report[ch] = {"order": order, "chosen": chosen, "source": src}
+            report[ch] = {"order": order, "chosen": chosen, "source": src,
+                          "excluded_sh": [r[0] for r in rs if is_sh_again(r[2] if len(r) > 2 else "")]}
 
     # ---------------- ② 詞組候選讀音 ----------------
     # 有效讀音：WORD_OVERRIDE > 單字預設 > 簡體字轉成繁體後的預設
