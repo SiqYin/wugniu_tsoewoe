@@ -95,11 +95,35 @@ textarea#src::placeholder{color:var(--ink3)}
 padding:12px 14px;background:#fff;border:1px solid var(--yinb);border-radius:8px;
 word-break:break-word}
 #segview.on{display:block}
-#segview .seg{display:inline-block;padding:0 1px;border-radius:4px}
-#segview .sepmark{display:inline-block;color:var(--segbar);font-weight:700;cursor:pointer;
-padding:0 2px;border-radius:3px;user-select:none;transition:.12s;font-size:15px}
+#segview .seg{display:inline-block;padding:0 1px;border-radius:4px;position:relative}
+/* 已有小豎槓：可拖動 */
+#segview .sepmark{display:inline-block;color:var(--segbar);font-weight:700;
+cursor:grab;padding:0 2px;border-radius:3px;user-select:none;transition:background .12s,color .12s;
+font-size:15px;position:relative;touch-action:none}
 #segview .sepmark:hover{background:var(--yinb);color:#fff}
-#segview .sepmark.first,#segview .sepmark.last{opacity:.28;cursor:default}
+#segview .sepmark.dragging{background:var(--segbar);color:#fff;cursor:grabbing;opacity:.55}
+#segview .sepmark.dropzone{background:var(--yinb);color:#fff;box-shadow:0 0 0 2px rgba(41,128,185,.35)}
+/* 字間隙：游標移上去出現淡淡的小豎槓提示；需要實際可點擊的寬度 */
+#segview .gap{display:inline-block;width:7px;position:relative;vertical-align:middle;
+cursor:pointer;height:1.2em}
+#segview .gap::after{content:"|";position:absolute;left:50%;top:-1px;transform:translateX(-50%);
+color:var(--segbar);opacity:0;font-weight:700;font-size:15px;
+transition:opacity .12s;pointer-events:none;white-space:nowrap}
+#segview .gap:hover::after{opacity:.45}
+#segview .gap:hover{background:rgba(41,128,185,.07);border-radius:2px}
+/* 確認彈窗 */
+#cfm{position:fixed;inset:0;z-index:400;background:rgba(26,42,58,.18);
+display:flex;align-items:center;justify-content:center}
+#cfm .cfm-in{background:#fff;border:1px solid var(--line);border-radius:10px;
+box-shadow:0 10px 32px rgba(26,82,118,.22);padding:18px 20px;max-width:min(88vw,340px);
+font-size:14.5px;color:var(--ink)}
+#cfm p{margin:0 0 14px;line-height:1.7}
+#cfm .cfm-btns{display:flex;gap:10px;justify-content:flex-end}
+#cfm button{font-family:inherit;font-size:13.5px;border-radius:6px;padding:7px 16px;
+cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink2)}
+#cfm button:hover{background:var(--yin);color:var(--sys)}
+#cfm .cfm-yes{background:var(--yinb);border-color:var(--yinb);color:#fff;font-weight:700}
+#cfm .cfm-yes:hover{background:var(--sys2);color:#fff}
 
 .actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
 .go{font-family:inherit;font-size:15px;font-weight:700;color:#fff;background:var(--yinb);
@@ -298,7 +322,8 @@ var VARIANTS=null;        // 簡→繁候選組（仿切韻推導器的異體字
 /* 使用者選定的讀音：key = 全域字元索引, value = {ci: 繁候選索引, ri: 讀音索引} */
 var picks={};
 /* 使用者手動分詞：邊界位置集合（位置 i = 「第 i 個字之前切」） */
-var seps=null;
+var seps=null;         // 使用者新增的切分點（Set<int>）
+var sepsDeleted=null;  // 使用者刪除的自動切分點（Set<int>）
 var lastText='';
 
 /* ============================ 語言 ============================ */
@@ -311,7 +336,7 @@ wu:{
   go:'轉換', clear:'清空', copy:'複製結果',
   hint:'支援繁體與簡體；標點與換行會切分句子。',
   out_title:'轉換結果', rules_title:'拼音文規則', stats_title:'資料統計',
-  seg_hint:'已自動分詞（只按吳語詞表，不含普通話詞庫）。點兩字之間的金色小豎槓可切開／合併詞，拼音文按這個分詞連寫。',
+  seg_hint:'已自動分詞。拖動小豎槓可移動；右鍵刪除；點字與字之間的淡淡小豎槓可新增分詞。拼音文按這個分詞連寫。',
   sync_loading:'正在讀取字音站資料…',
   sync_ok:'字音資料已就緒',
   sync_stale:'字音站有更新，本頁資料會在下次建置時同步（見 README）',
@@ -322,6 +347,9 @@ wu:{
   note_untone:'無調讀音', note_choosing:'點擊該字可從全部字音中挑選。',
   huhe:'河湖韻處理', huhe_default:'蘇滬混合腔默認', huhe_hu:'全走湖韻', huhe_he:'全走河韻',
   huhe_hint:'湖韻〔uᵝ〕與河韻〔əuᵝ〕是同一個音位的兩個音值變體。此設定優先於逐字默認音。',
+  confirm:'確認', cancel:'取消',
+  seg_add_q:'在此加分詞？', seg_del_q:'刪除這條分詞？',
+  seg_hint2:'拖動小豎槓可移動；右鍵刪除；點字與字之間可加分詞。',
   footer:'字音資料來自 <a href="https://siqyin.github.io/wugniu_zyinzozin/" target="_blank" rel="noopener">吳語字音查詢</a>；韻圖位置標記來自 <a href="https://siqyin.github.io/wugniu_yundu/" target="_blank" rel="noopener">蘇滬混合腔韻圖</a>。本頁不自行推導字音。'
 },
 en:{
@@ -343,6 +371,9 @@ en:{
   note_untone:'toneless reading', note_choosing:'Click the character to pick among all readings.',
   huhe:'Hu/He finals', huhe_default:'Su-Hu default', huhe_hu:'All Hu', huhe_he:'All He',
   huhe_hint:'Hu [uᵝ] and He [əuᵝ] are free variants of one phoneme. This overrides per-character defaults.',
+  confirm:'Confirm', cancel:'Cancel',
+  seg_add_q:'Add a word break here?', seg_del_q:'Delete this word break?',
+  seg_hint2:'Drag a bar to move it, right-click to delete, click between characters to add.',
   footer:'Readings from <a href="https://siqyin.github.io/wugniu_zyinzozin/" target="_blank" rel="noopener">Wu pronunciation lookup</a>; rhyme-chart positions from <a href="https://siqyin.github.io/wugniu_yundu/" target="_blank" rel="noopener">the Su-Hu rhyme chart</a>. Nothing is derived on this page.'
 },
 ja:{
@@ -364,6 +395,9 @@ ja:{
   note_untone:'声調なしの読み', note_choosing:'文字をクリックすると全ての読みから選べます。',
   huhe:'湖韻／河韻の扱い', huhe_default:'蘇滬混合腔デフォルト', huhe_hu:'全て湖韻', huhe_he:'全て河韻',
   huhe_hint:'湖韻〔uᵝ〕と河韻〔əuᵝ〕は同一音素の自由変異です。この設定は字ごとの既定読みより優先されます。',
+  confirm:'確認', cancel:'キャンセル',
+  seg_add_q:'ここに分かち書きを追加しますか？', seg_del_q:'この分かち書きを削除しますか？',
+  seg_hint2:'縦線をドラッグで移動、右クリックで削除、文字間をクリックで追加。',
   footer:'字音は<a href="https://siqyin.github.io/wugniu_zyinzozin/" target="_blank" rel="noopener">吳語字音查詢</a>、韻図位置は<a href="https://siqyin.github.io/wugniu_yundu/" target="_blank" rel="noopener">蘇滬混合腔韻圖</a>より。本ページでは推導しません。'
 }};
 function t(k){ return (I18N[lang]&&I18N[lang][k])||I18N.wu[k]||k; }
@@ -702,7 +736,12 @@ function allHan(a){ for(var i=0;i<a.length;i++){ if(!isHan(a[i])) return false; 
 function autoSegment(chars){
   var out=[], i=0, n=chars.length, maxL=LEX?LEX.maxLen:1;
   while(i<n){
-    if(!isHan(chars[i])){ out.push([chars[i]]); i++; continue; }
+    if(!isHan(chars[i])){
+      /* 標點／空白：附著在前一個詞上（「儂。」不拆成「儂|。」） */
+      if(out.length) out[out.length-1].push(chars[i]);
+      else out.push([chars[i]]);
+      i++; continue;
+    }
     var bestLen=1, bestW=0;
     var lim=Math.min(maxL,n-i);
     for(var L=lim;L>=2;L--){
@@ -718,22 +757,44 @@ function autoSegment(chars){
   return out;
 }
 
-/* 把句子切成「詞的陣列」，套用使用者的手動分詞點 */
-function segmentSentence(sent){
+/* 把句子切成「詞的陣列」。
+   自動切分點來自詞表；使用者新增／刪除的切分點以 seps / sepsDeleted 覆蓋。
+   注意：這裡的 pos 是「全文累計位置」，與 renderSegEditor 的計法必須一致。 */
+var _segGpos = 0;   /* 由 splitSentencesForSeg 逐句累計 */
+
+function segmentSentence(sent, startPos){
   var chars=Array.from(sent);
   var base=autoSegment(chars);
-  if(!seps||!seps.size) return base;
-  /* 把手動邊界套上去：邊界是「全域句子內字元位置」 */
+  var pos = (startPos===undefined) ? 0 : startPos;
+  var hasManual = (seps && seps.size) || (sepsDeleted && sepsDeleted.size);
   var out=[], cur=[];
-  var pos=0;
-  base.forEach(function(word){
+  for(var w=0;w<base.length;w++){
+    var word=base[w];
     for(var i=0;i<word.length;i++){
-      if(pos>0 && seps.has(pos) && cur.length){ out.push(cur); cur=[]; }
-      cur.push(word[i]); pos++;
+      var isAutoBreak = (i===0 && w>0);
+      var manualAdd = seps && seps.has(pos);
+      var manualDel = sepsDeleted && sepsDeleted.has(pos);
+      var doBreak;
+      if(manualDel) doBreak=false;
+      else if(manualAdd) doBreak=true;
+      else doBreak=isAutoBreak;
+      if(pos>0 && doBreak && cur.length){ out.push(cur); cur=[]; }
+      cur.push(word[i]);
+      pos++;
     }
-  });
+  }
   if(cur.length) out.push(cur);
   return out;
+}
+
+/* 逐句套用、正確累計全文位置 */
+function segmentAll(text){
+  var res=[], pos=0;
+  splitSentences(text).forEach(function(sent){
+    res.push({sent:sent, words:segmentSentence(sent, pos), start:pos});
+    pos += Array.from(sent).length;
+  });
+  return res;
 }
 
 /* ============================ 句子切分 ============================ */
@@ -749,45 +810,191 @@ function splitSentences(text){
   return out.filter(function(s){ return s.trim().length>0; });
 }
 
-/* ============================ 分詞編輯器 ============================ */
-/* 注意：gpos 是「全文累計字元位置」，要與 doConvert 裡 gIdx 的計法一致，
-   否則第二句之後的分詞點會全部錯位（點第一句能動、後面點不動）。 */
+/* ============================ 分詞編輯器 ============================
+   自動切分點來自分詞詞表；使用者可以：
+     · 拖動已有小豎槓到別處（移動）
+     · 右鍵小豎槓 → 刪除
+     · 點字與字之間的間隙 → 確認後新增
+   實際切分 = 自動切分點 ∪ seps − sepsDeleted
+   ------------------------------------------------------------------- */
+function autoBoundaries(text){
+  /* 回傳自動切分的邊界位置集合（全文累計字元位置） */
+  var b=new Set(), gpos=0;
+  splitSentences(text).forEach(function(sent){
+    var words=segmentSentence(sent);
+    words.forEach(function(word,wi){
+      if(wi>0) b.add(gpos);
+      gpos+=word.length;
+    });
+  });
+  return b;
+}
+
+function effectiveBoundaries(text){
+  var b=autoBoundaries(text);
+  if(seps) seps.forEach(function(x){ b.add(x); });
+  if(sepsDeleted) sepsDeleted.forEach(function(x){ b.delete(x); });
+  /* 0 與 text.length 是句首句尾，不算切分點 */
+  b.delete(0); b.delete(text.length);
+  return b;
+}
+
 function renderSegEditor(){
   var text=lastText||'';
   var view=document.getElementById('segview');
   if(!text.trim()){ view.innerHTML=''; return; }
   if(seps===null) seps=new Set();
-  var sentences=splitSentences(text);
-  var html='', gpos=0;
-  sentences.forEach(function(sent){
-    var words=segmentSentence(sent);
-    words.forEach(function(word,wi){
-      if(wi>0){
-        html+='<span class="sepmark" data-pos="'+gpos+
-              '" title="切開／合併">|</span>';
+  if(sepsDeleted===null) sepsDeleted=new Set();
+
+  var cuts=effectiveBoundaries(text);
+  var chars=Array.from(text);
+  var html='';
+  for(var i=0;i<chars.length;i++){
+    var c=chars[i];
+    if(i>0){
+      if(cuts.has(i)){
+        html+='<span class="sepmark" data-pos="'+i+'" title="拖動可移動；右鍵刪除">|</span>';
+      }else{
+        html+='<span class="gap" data-pos="'+i+'" title="點擊在此加分詞"></span>';
       }
-      html+='<span class="seg">'+esc(word.join(''))+'</span>';
-      gpos+=word.length;
-    });
-  });
+    }
+    html+='<span class="seg" data-i="'+i+'">'+esc(c)+'</span>';
+  }
   view.innerHTML=html;
 }
-function toggleSep(pos){
+
+/* ---- 找出滑鼠位置對應的「最接近字間隙」位置 ---- */
+function nearestGap(view, clientX){
+  var segs=view.querySelectorAll('.seg');
+  if(!segs.length) return null;
+  var best=null, bestDist=1e9;
+  for(var i=0;i<segs.length;i++){
+    var r=segs[i].getBoundingClientRect();
+    /* 每個字的左右邊界都可能是間隙（位置 i 或 i+1） */
+    var cands=[[i, Math.abs(clientX-r.left)],[i+1, Math.abs(clientX-r.right)]];
+    for(var k=0;k<cands.length;k++){
+      if(cands[k][1]<bestDist){ bestDist=cands[k][1]; best=cands[k][0]; }
+    }
+  }
+  return best;
+}
+
+/* ---- 移動：拖動小豎槓 ---- */
+var dragFrom=null, dragEl=null;
+document.addEventListener('mousedown', function(e){
+  var m = e.target.closest ? e.target.closest('#segview .sepmark') : null;
+  if(!m) return;
+  if(e.button!==0) return;          /* 只有左鍵拖動 */
+  e.preventDefault();
+  dragFrom = parseInt(m.getAttribute('data-pos'),10);
+  dragEl = m;
+  m.classList.add('dragging');
+});
+
+document.addEventListener('mouseover', function(e){
+  if(dragFrom===null) return;
+  var m = e.target.closest ? e.target.closest('#segview .sepmark') : null;
+  if(m && m!==dragEl) m.classList.add('dropzone');
+});
+document.addEventListener('mouseout', function(e){
+  var m = e.target.closest ? e.target.closest('#segview .sepmark') : null;
+  if(m) m.classList.remove('dropzone');
+});
+
+document.addEventListener('mouseup', function(e){
+  if(dragFrom===null){ return; }
+  var view=document.getElementById('segview');
+  var from=dragFrom;
+  if(dragEl) dragEl.classList.remove('dragging');
+  var to=null;
+
+  /* 若放開在另一個小豎槓上 → 合併到那個位置（等於刪掉自己） */
+  var over = e.target.closest ? e.target.closest('#segview .sepmark') : null;
+  if(over && over!==dragEl){
+    to = parseInt(over.getAttribute('data-pos'),10);
+  }else if(view.contains(e.target) || e.target===view){
+    to = nearestGap(view, e.clientX);
+  }
+  dragFrom=null;
+  if(dragEl) dragEl.classList.remove('dropzone');
+  dragEl=null;
+
+  if(to===null || to===from) { renderSegEditor(); return; }
+  moveCut(text_of(), from, to);
+});
+
+function text_of(){ return lastText||''; }
+
+function moveCut(text, from, to){
   if(seps===null) seps=new Set();
-  if(seps.has(pos)) seps.delete(pos); else seps.add(pos);
+  if(sepsDeleted===null) sepsDeleted=new Set();
+  var n=text.length;
+  if(to<=0 || to>=n) return;
+  var auto=autoBoundaries(text);
+  /* 起點：從原位置移除（若原本是自動切分，記入 deleted；否則從 seps 移除） */
+  if(auto.has(from)) sepsDeleted.add(from);
+  seps.delete(from);
+  /* 終點：新增（若終點本來是自動切分，取消其 deleted） */
+  if(auto.has(to)) sepsDeleted.delete(to);
+  else seps.add(to);
   renderSegEditor();
   if(document.getElementById('out').dataset.done==='1') doConvert();
 }
 
-/* 分詞小豎槓：用事件委託，不依賴內聯 onclick（更穩，也避免被 CSP 擋） */
-document.addEventListener('click', function(e){
-  var m = e.target.closest ? e.target.closest('.sepmark') : null;
+/* ---- 刪除：右鍵小豎槓 ---- */
+document.addEventListener('contextmenu', function(e){
+  var m = e.target.closest ? e.target.closest('#segview .sepmark') : null;
   if(!m) return;
   e.preventDefault();
-  e.stopPropagation();
-  var pos = parseInt(m.getAttribute('data-pos'), 10);
-  if(!isNaN(pos)) toggleSep(pos);
+  var pos=parseInt(m.getAttribute('data-pos'),10);
+  if(isNaN(pos)) return;
+  showConfirm(t('seg_del_q'), function(){
+    if(seps===null) seps=new Set();
+    if(sepsDeleted===null) sepsDeleted=new Set();
+    var auto=autoBoundaries(text_of());
+    if(auto.has(pos)) sepsDeleted.add(pos);
+    seps.delete(pos);
+    renderSegEditor();
+    if(document.getElementById('out').dataset.done==='1') doConvert();
+  });
 });
+
+/* ---- 新增：點字間隙 ---- */
+document.addEventListener('click', function(e){
+  var g = e.target.closest ? e.target.closest('#segview .gap') : null;
+  if(!g) return;
+  e.preventDefault();
+  e.stopPropagation();
+  var pos=parseInt(g.getAttribute('data-pos'),10);
+  if(isNaN(pos)) return;
+  showConfirm(t('seg_add_q'), function(){
+    if(seps===null) seps=new Set();
+    if(sepsDeleted===null) sepsDeleted=new Set();
+    var auto=autoBoundaries(text_of());
+    if(auto.has(pos)) sepsDeleted.delete(pos);
+    seps.add(pos);
+    renderSegEditor();
+    if(document.getElementById('out').dataset.done==='1') doConvert();
+  });
+});
+
+/* ---- 極簡確認彈窗（不用原生 confirm，維持視覺一致） ---- */
+function showConfirm(msg, onYes){
+  closeConfirm();
+  var box=document.createElement('div');
+  box.id='cfm';
+  box.innerHTML='<div class="cfm-in"><p>'+esc(msg)+'</p>'
+    + '<div class="cfm-btns"><button class="cfm-no">'+esc(t('cancel'))+'</button>'
+    + '<button class="cfm-yes">'+esc(t('confirm'))+'</button></div></div>';
+  document.body.appendChild(box);
+  box.querySelector('.cfm-yes').onclick=function(ev){ ev.stopPropagation(); closeConfirm(); onYes(); };
+  box.querySelector('.cfm-no').onclick=function(ev){ ev.stopPropagation(); closeConfirm(); };
+  box.onclick=function(ev){ if(ev.target===box) closeConfirm(); };
+}
+function closeConfirm(){
+  var b=document.getElementById('cfm');
+  if(b) b.remove();
+}
 
 /* ============================ 轉換 ============================ */
 function doConvert(){
@@ -807,8 +1014,12 @@ function doConvert(){
 
   var gIdx=0, unknowns=[], varCount=0;
 
+  /* 先算出每句的（起始位置, 詞陣列），確保分詞點的全域位置正確 */
+  var segPlan = segmentAll(text);
+  var sentIndex = 0;
+
   sentences.forEach(function(sent,si){
-    var words=segmentSentence(sent);
+    var words = segPlan[si] ? segPlan[si].words : segmentSentence(sent, segPlan[si] ? segPlan[si].start : 0);
 
     /* 先把這一句的每個字解析好：word 是它所屬的詞（給詞組既定讀音用） */
     var plan=[];   /* [{ch, idx, isHan, res, wordStart}] */
