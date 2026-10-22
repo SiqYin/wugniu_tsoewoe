@@ -1,0 +1,59 @@
+name: 發佈到 GitHub Pages（備用通道）
+
+# 這是【備用】發佈通道，平常不需要動它。
+#
+# 本站與韻圖站一樣，用 GitHub Pages 的「分支模式」（main 分支根目錄）發佈：
+# push 上去就自動是線上內容。tools/publish.py 會用 API 把 Pages 來源設成
+# 「main 分支 / 根目錄」。
+#
+# 只有在想改用 Actions 發佈時，才到 Actions 頁面手動 Run 一次這個工作流；
+# 它會先把 Pages 的來源切成「GitHub Actions」，之後每次 push 就由它部署。
+# 用的是倉庫自帶的 GITHUB_TOKEN，不需要任何個人存取權杖。
+#
+# 注意：Pages 處於分支模式時，這個工作流【不可】在 push 時自動觸發，
+# 否則 actions/deploy-pages 會因為來源不是 Actions 而失敗。
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 取出倉庫
+        uses: actions/checkout@v4
+
+      - name: 開啟 GitHub Pages（若尚未開啟）
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: 準備發佈目錄
+        run: |
+          mkdir -p _site
+          cp index.html README.md favicon.ico apple-touch-icon.png _site/
+          cp -r data _site/
+          cp -r fonts _site/
+          touch _site/.nojekyll
+          du -sh _site
+
+      - name: 打包
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: 部署
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+tools/_preview_*.png
+*.log
+.DS_Store
