@@ -119,7 +119,14 @@ EXTRA_WORDS = [
     "上面", "上邊", "上边", "上下", "皇上", "在上",
     "在裏", "在裡", "在里",
     "个人", "個人", "个体", "個體",
+    # 正字法示例詞：兒戲 的「兒」讀 er1（否則取默認 gni2，會拼成 Gni shi）
+    "兒戲", "儿戏",
 ]
+
+# 詞內特例的補充（放在 WORD_OVERRIDE 之後定義亦可，這裡集中宣告）
+for _w in ("兒戲", "儿戏"):
+    WORD_OVERRIDE.setdefault(_w, {})["兒"] = "er1"
+    WORD_OVERRIDE[_w]["儿"] = "er1"
 
 
 def read_word_codes(path):
@@ -171,12 +178,23 @@ def main():
             report[ch] = {"order": order, "chosen": chosen, "source": src}
 
     # ---------------- ② 詞組候選讀音 ----------------
-    # 有效讀音：WORD_OVERRIDE > 單字預設
+    # 有效讀音：WORD_OVERRIDE > 單字預設 > 簡體字轉成繁體後的預設
+    _s2t = d["s2t"]
+
+    def default_of(c):
+        """逐字預設音；簡體字（不在 chars 裡）用它對應繁體字的預設。"""
+        if defaults.get(c):
+            return defaults[c]
+        for tr in _s2t.get(c, []):
+            if defaults.get(tr):
+                return defaults[tr]
+        return None
+
     def effective(word):
         eff = {}
         for i, c in enumerate(word):
             ov = WORD_OVERRIDE.get(word, {}).get(c)
-            eff[i] = ov if ov else defaults.get(c)
+            eff[i] = ov if ov else default_of(c)
         return eff
 
     words = {}
@@ -187,21 +205,38 @@ def main():
         if syls not in words[word]:
             words[word].append(syls)
 
-    # 補充詞：詞庫沒收但使用者要求當成一個詞的，用逐字預設音造一條候選
+    # 補充詞：詞庫沒收但使用者要求當成一個詞的，用逐字預設音造一條候選。
+    # 注意：簡體字（如 儿、戏）不在 chars 裡，要靠 s2t 的鍵才算「認得」，
+    # 否則「儿戏」會被誤判成查無此字而漏掉。
+    # 簡體字本身沒有默認音，一律改用其對應繁體字的默認音（簡→繁第一候選）。
+    s2t_keys = d["s2t"]
+
+    def reading_for(c, word):
+        """這個字在該詞裡該用什麼音：詞內特例 > 逐字默認 > 其繁體對應的默認。"""
+        ov = WORD_OVERRIDE.get(word, {}).get(c)
+        if ov:
+            return ov
+        if defaults.get(c):
+            return defaults[c]
+        for tr in s2t_keys.get(c, []):
+            if defaults.get(tr):
+                return defaults[tr]
+        return None
+
     extra_added = []
     for word in EXTRA_WORDS:
-        if not all(c in chars for c in word):
+        if not all((c in chars) or (c in s2t_keys) for c in word):
+            continue
+        want = [reading_for(c, word) for c in word]
+        if any(x is None for x in want):
             continue
         if word not in words:
-            eff = {i: (WORD_OVERRIDE.get(word, {}).get(c) or defaults.get(c))
-                   for i, c in enumerate(word)}
-            words[word] = [[eff[i] for i in range(len(word))]]
+            words[word] = [want]
             extra_added.append(word)
         else:
-            words[word] = [[(WORD_OVERRIDE.get(word, {}).get(c) or defaults.get(c))
-                            for c in word]] + \
-                [w for w in words[word]
-                 if w != [(WORD_OVERRIDE.get(word, {}).get(c) or defaults.get(c)) for c in word]]
+            # 正確的那條一定排第一；同時剔除任何含 None 的殘缺候選
+            rest = [w for w in words[word] if w != want and all(x is not None for x in w)]
+            words[word] = [want] + rest
     # 分詞詞表也要收這些詞
     extra_words_list = list(words.keys())
 
@@ -210,7 +245,9 @@ def main():
         return sum(1 for i, s in enumerate(syls) if eff.get(i) == s)
 
     for word in words:
-        words[word].sort(key=lambda s: (-agreement(s, word),))
+        # 含 None 的殘缺候選（簡體字查不到音）永遠排最後
+        words[word].sort(key=lambda s: (any(x is None for x in s),
+                                        -agreement(s, word)))
 
     # 詞內特例：確保指定的那條讀音排第一（詞庫沒收就補一條）
     for word, ov in WORD_OVERRIDE.items():
