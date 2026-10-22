@@ -22,6 +22,8 @@
 --ok:#2e7d4f; --okbg:#eef7f1;
 --gold:#8a6d1c; --goldbg:#fdf8ef;
 --sep:#d9a441;
+--segbar:#16324f;   /* 分詞小豎槓：深藍黑（與 --sys 同色系但更深） */
+--segbar-hi:#1a5276;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -94,9 +96,9 @@ padding:12px 14px;background:#fff;border:1px solid var(--yinb);border-radius:8px
 word-break:break-word}
 #segview.on{display:block}
 #segview .seg{display:inline-block;padding:0 1px;border-radius:4px}
-#segview .sepmark{display:inline-block;color:var(--sep);font-weight:700;cursor:pointer;
+#segview .sepmark{display:inline-block;color:var(--segbar);font-weight:700;cursor:pointer;
 padding:0 2px;border-radius:3px;user-select:none;transition:.12s;font-size:15px}
-#segview .sepmark:hover{background:var(--goldbg);color:#c8961e}
+#segview .sepmark:hover{background:var(--yinb);color:#fff}
 #segview .sepmark.first,#segview .sepmark.last{opacity:.28;cursor:default}
 
 .actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
@@ -291,6 +293,7 @@ var outMode='tone';   // tone = 帶調拼音, rom = 拼音文
 var lang='wu';
 var huheMode='default';   // default | hu | he —— 河湖韻處理（優先於逐字默認音）
 var HUHE=null;            // 湖/河變體對照表
+var VARIANTS=null;        // 簡→繁候選組（仿切韻推導器的異體字展開）
 
 /* 使用者選定的讀音：key = 全域字元索引, value = {ci: 繁候選索引, ri: 讀音索引} */
 var picks={};
@@ -430,9 +433,11 @@ function loadAll(){
     getJSON('data/lexicon.json',{words:{},maxLen:1}),
     getJSON('data/meta.json',null),
     getJSON('data/rules.json',{}),
-    getJSON('data/huhe.json',{})
+    getJSON('data/huhe.json',{}),
+    getJSON('data/variants.json',{})
   ]).then(function(r){
-    DICT=r[0]; DEFAULTS=r[1]; WORDS=r[2]; LEX=r[3]; META=r[4]; RULES=r[5]; HUHE=r[6];
+    DICT=r[0]; DEFAULTS=r[1]; WORDS=r[2]; LEX=r[3]; META=r[4]; RULES=r[5];
+    HUHE=r[6]; VARIANTS=r[7];
     LOADED=true; setSync('ok',t('sync_ok')); renderStats();
     checkUpstream();
   }).catch(function(e){ console.error(e); setSync('warn',t('sync_fail')); });
@@ -493,46 +498,52 @@ function syncHuheUI(){
 }
 
 /* ============================ 讀音 ============================ */
-/* 某字的所有候選。簡體字可能對應多個繁體。
-   若該字在 NO_CONVERT 名單（如「个」），就固定用本字，不展開繁體。 */
+/* 某字的候選組 —— 仿切韻推導器 convertArticle 的「異體字展開」思路：
+   把該字與它對應的繁體字一起查，每個「不同的字 + 不同讀音」就是一個候選。
+   繁體為標準形，所以繁體排在前面；一簡多繁時前端標紅，讓使用者自己挑。
+   ------------------------------------------------------------------- */
 function candidates(ch, wordHint){
   if(!DICT) return [];
-  var noConv=RULES&&RULES.noConvert&&RULES.noConvert.indexOf(ch)>=0;
-  if(noConv){
-    /* 例外詞：如「个人」「个体」→「個人」「個體」。
-       注意 wordHint 可能是簡體詞（个人）或繁體詞（個人），兩種都要處理。 */
-    var cw=RULES&&RULES.convertWords||{};
-    var w=wordHint||'';
-    var trCh='';
-    if(cw[w]){
-      /* 簡體詞 → 繁體詞，取同位置的繁體字 */
-      var tr=cw[w], pos=w.indexOf(ch);
-      if(pos>=0 && tr.charAt(pos)) trCh=tr.charAt(pos);
-    }else{
-      /* wordHint 已是繁體（或在詞表裡以繁體存），逐一比對 key */
-      for(var k in cw){
-        if(cw[k]===w){
-          var pos2=k.indexOf(ch);
-          if(pos2>=0 && w.charAt(pos2)) trCh=w.charAt(pos2);
-          break;
-        }
+
+  /* ① 詞級例外：如「个人」「个体」裡的「个」→「個」 */
+  var cw=(RULES&&RULES.convertWords)||{};
+  var w=wordHint||'';
+  var trWord=cw[w];
+  if(!trWord){
+    for(var k in cw){ if(cw[k]===w){ trWord=w; break; } }
+  }
+  if(trWord && w.length===trWord.length){
+    var pos=w.indexOf(ch);
+    if(pos>=0){
+      var trCh=trWord.charAt(pos);
+      if(trCh && trCh!==ch && DICT.chars[trCh]){
+        return [{ch:trCh, readings:DICT.chars[trCh], converted:true, from:ch}];
       }
     }
-    if(trCh && DICT.chars[trCh] && trCh!==ch)
-      return [{ch:trCh,readings:DICT.chars[trCh]}];
-    if(DICT.chars[ch]) return [{ch:ch,readings:DICT.chars[ch]}];
   }
 
+  /* ② 不轉繁的字（如「个」）：固定用本字 */
+  var noConv=(RULES&&RULES.noConvert)||[];
+  var isNoConv = noConv.indexOf(ch)>=0;
+
+  /* ③ 候選組：VARIANTS.s2t[ch] 已按「繁體在前、本字在後」排好 */
+  var list = (VARIANTS && VARIANTS.s2t && VARIANTS.s2t[ch]) || null;
+  if(isNoConv) list = DICT.chars[ch] ? [ch] : list;
+
   var out=[], seen={};
-  var ts=DICT.s2t[ch]||[];
-  /* 繁體候選優先（輸入簡體時，輸出也給繁體） */
-  if(!noConv){
-    ts.forEach(function(tr){
-      if(tr!==ch && DICT.chars[tr] && !seen[tr]){ seen[tr]=1; out.push({ch:tr,readings:DICT.chars[tr]}); }
+  if(list){
+    list.forEach(function(trad){
+      if(DICT.chars[trad] && !seen[trad]){
+        seen[trad]=1;
+        out.push({ch:trad, readings:DICT.chars[trad],
+                  converted: trad!==ch, from: ch});
+      }
     });
   }
-  /* 本字自己（簡體字本身也收在 DB 的情況）排最後 */
-  if(DICT.chars[ch] && !seen[ch]){ seen[ch]=1; out.push({ch:ch,readings:DICT.chars[ch]}); }
+  /* ④ 保底：候選組沒收錄時，本字若在字典裡就直接用 */
+  if(!out.length && DICT.chars[ch]){
+    out.push({ch:ch, readings:DICT.chars[ch], converted:false, from:ch});
+  }
   return out;
 }
 
@@ -543,6 +554,7 @@ function resolve(ch,idx,wordHint){
   var p=picks[idx]||{};
   var ci=(p.ci!==undefined && p.ci<cands.length)?p.ci:0;
   var rs=cands[ci].readings;
+  if(!rs || !rs.length) return {ok:false,ch:ch};
   var ri=(p.ri!==undefined && p.ri<rs.length)?p.ri:0;
 
   if(p.ri===undefined){
@@ -552,15 +564,21 @@ function resolve(ch,idx,wordHint){
     if(isSingle && RULES && RULES.singleOverride && RULES.singleOverride[ch]){
       want=RULES.singleOverride[ch];
     }
-    /* ② 詞組既定讀音（words.json 該詞第一條） */
+    /* ② 詞組既定讀音（繁體形為標準） */
     if(!want && wordHint && WORDS && WORDS[wordHint] && WORDS[wordHint].length && !isSingle){
       var w=WORDS[wordHint][0];
       for(var k=0;k<wordHint.length;k++){
         if(wordHint[k]===ch && w[k]){ want=w[k]; break; }
       }
     }
-    /* ③ 逐字預設音 */
-    if(!want) want=DEFAULTS[cands[ci].ch];
+    /* ③ 逐字預設音（簡體字用它繁體對應的預設） */
+    if(!want){
+      want=DEFAULTS[cands[ci].ch];
+      if(!want && VARIANTS && VARIANTS.s2t){
+        var grp=VARIANTS.s2t[ch]||[];
+        for(var g=0;g<grp.length && !want;g++){ want=DEFAULTS[grp[g]]; }
+      }
+    }
     if(want){ for(var i=0;i<rs.length;i++){ if(rs[i][0]===want){ ri=i; break; } } }
   }
   var rd=rs[ri];
@@ -569,7 +587,9 @@ function resolve(ch,idx,wordHint){
   var shownIpa=ipaOf(shown, rd[0]);
   return {ok:true,ch:cands[ci].ch,ci:ci,ri:ri,readings:rs,cands:cands,
           syl:shown, origSyl:rd[0], ipa:shownIpa,
-          note:rd[2]||'', multi:cands.length>1||rs.length>1};
+          note:rd[2]||'',
+          /* 標紅條件：多個繁體候選、多個讀音，或本字被折成繁體 */
+          multi:(cands.length>1 || rs.length>1 || cands[ci].converted===true)};
 }
 
 /* ============================ 河湖韻規範化 ============================
@@ -730,6 +750,8 @@ function splitSentences(text){
 }
 
 /* ============================ 分詞編輯器 ============================ */
+/* 注意：gpos 是「全文累計字元位置」，要與 doConvert 裡 gIdx 的計法一致，
+   否則第二句之後的分詞點會全部錯位（點第一句能動、後面點不動）。 */
 function renderSegEditor(){
   var text=lastText||'';
   var view=document.getElementById('segview');
@@ -741,14 +763,12 @@ function renderSegEditor(){
     var words=segmentSentence(sent);
     words.forEach(function(word,wi){
       if(wi>0){
-        var isFirst=(gpos===0);
-        html+='<span class="sepmark'+(isFirst?' first':'')+'" data-pos="'+gpos+
-              '" onclick="toggleSep('+gpos+')" title="切開／合併">|</span>';
+        html+='<span class="sepmark" data-pos="'+gpos+
+              '" title="切開／合併">|</span>';
       }
       html+='<span class="seg">'+esc(word.join(''))+'</span>';
       gpos+=word.length;
     });
-    /* 句尾標點已包含在最後一個詞裡 */
   });
   view.innerHTML=html;
 }
@@ -758,6 +778,16 @@ function toggleSep(pos){
   renderSegEditor();
   if(document.getElementById('out').dataset.done==='1') doConvert();
 }
+
+/* 分詞小豎槓：用事件委託，不依賴內聯 onclick（更穩，也避免被 CSP 擋） */
+document.addEventListener('click', function(e){
+  var m = e.target.closest ? e.target.closest('.sepmark') : null;
+  if(!m) return;
+  e.preventDefault();
+  e.stopPropagation();
+  var pos = parseInt(m.getAttribute('data-pos'), 10);
+  if(!isNaN(pos)) toggleSep(pos);
+});
 
 /* ============================ 轉換 ============================ */
 function doConvert(){
@@ -770,6 +800,8 @@ function doConvert(){
   var outEl=document.getElementById('out');
   outEl.innerHTML='';
   outEl.dataset.done='1';
+  /* #out 的 CSS 是 display:none，必須加上 .on 才會顯示 —— 否則內容生成了卻是空白 */
+  outEl.classList.add('on');
   document.getElementById('outSec').style.display='block';
   document.getElementById('btnCopy').style.display='inline-block';
 
@@ -944,15 +976,21 @@ function openPop(idx,anchor){
     document.getElementById('popAlt').textContent='';
     body.innerHTML='<div class="noread">'+esc(t('no_read'))+'</div>';
   } else {
-    /* 簡體多候選時，標明各繁體 */
+    /* 繁體候選：簡體輸入時列出它對應的全部繁體，讓使用者挑 */
+    var tradList=cands.map(function(c){return c.ch;});
     document.getElementById('popAlt').textContent =
       (cands.length>1 || cands[0].ch!==ch)
-        ? (t('alt_label')+cands.map(function(c){return c.ch;}).join(' / ')) : '';
+        ? (t('alt_label')+tradList.join(' / ')) : '';
     var p=picks[idx]||{};
     var curCi=(p.ci!==undefined&&p.ci<cands.length)?p.ci:0;
     var curRi=p.ri;
     if(curRi===undefined){
+      /* 預設選中：先看逐字預設音，简体字用它繁体对应的預設 */
       var def=DEFAULTS[cands[curCi].ch];
+      if(!def && VARIANTS && VARIANTS.s2t){
+        var grp=VARIANTS.s2t[ch]||[];
+        for(var g=0;g<grp.length && !def;g++){ def=DEFAULTS[grp[g]]; }
+      }
       curRi=0;
       if(def){ for(var i=0;i<cands[curCi].readings.length;i++){ if(cands[curCi].readings[i][0]===def){ curRi=i; break; } } }
     }
@@ -967,7 +1005,9 @@ function openPop(idx,anchor){
             + '<span class="ipa">['+esc(ipa)+']</span>';
         if(pos) h+='<span class="pos">'+esc(pos)+'</span>';
         if(!/[0-9]$/.test(syl)) h+='<span class="note">'+esc(t('note_untone'))+'</span>';
-        if(cands.length>1) h+='<span class="chtag">'+esc(t('alt_label'))+esc(cand.ch)+'</span>';
+        /* 顯示這一條屬於哪個繁體形（簡體輸入時尤其必要） */
+        if(cands.length>1 || cand.ch!==ch)
+          h+='<span class="chtag">'+esc(cand.ch)+'</span>';
         if(note) h+='<span class="note">'+esc(note)+'</span>';
         row.innerHTML=h;
         row.onclick=function(ev){
@@ -1011,8 +1051,10 @@ function doClear(){
   document.getElementById('src').value='';
   lastText=''; picks={}; seps=null;
   document.getElementById('segview').innerHTML='';
-  document.getElementById('out').innerHTML='';
-  document.getElementById('out').dataset.done='';
+  var outEl=document.getElementById('out');
+  outEl.innerHTML='';
+  outEl.dataset.done='';
+  outEl.classList.remove('on');   /* 清空時要一併移除 .on，否則下次轉換前的空狀態仍是 display:block */
   document.getElementById('outSec').style.display='none';
   document.getElementById('btnCopy').style.display='none';
 }
