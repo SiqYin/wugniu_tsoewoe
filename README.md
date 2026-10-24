@@ -109,6 +109,41 @@
 
 目前已校訂的規則見 `data/rules.json`（由 `tools/build_readings.py` 產生），要改就直接改該腳本頂部的 `OVERRIDE` / `WORD_OVERRIDE` / `SINGLE_OVERRIDE` / `NO_CONVERT` / `CONVERT_WORDS` / `EXTRA_WORDS`。
 
+## 三語界面與語言自動判斷
+
+界面支持 **吳語（繁體中文）／English／日本語**，右上角切換按鈕與字音站、韻圖站**完全同一套設計**（藍底 `#2980b9`、圓角 6px、`▾` 旋轉動畫）。
+
+### 語言判斷優先級
+
+與兩站一致：
+
+1. `?lang=wu|en|ja` 強制指定（也接受 `?lang=auto` 清除手選）
+2. `localStorage` 手選記憶 —— 使用者的明確選擇永遠優先
+3. 瀏覽器語言（`zh*` → 吳語、`ja*` → 日語，零請求即可判定）
+4. **IP 歸屬地**（`api.country.is`，失敗回退 Cloudflare `cdn-cgi/trace`）：
+   - `CN` `HK` `MO` `TW` → 吳語
+   - `JP` → 日語
+   - 其餘 → English
+5. 英文兜底
+
+本機預覽（`localhost` / `127.0.0.1` / `file:`）與爬蟲不自動判斷，維持吳語，避免搜尋引擎收錄到英文版。
+
+### 跨站語言聯動
+
+- **從字音站／韻圖站過來**：兩站跳轉時都帶 `?lang=<code>`，本站直接採用該語言
+- **從本站過去**：頁腳的字音站、韻圖站外鏈自動附上 `?lang=<當前語言>`
+
+### 術語（與兩站一致）
+
+| 中文 | English | 日本語 |
+|---|---|---|
+| 蘇滬混合腔 | common language | 呉越共通語 |
+| 吳語 | Wu language | 呉越語 |
+| 清末蘇州話 | Late Qing Suzhounese | 清末蘇州語 |
+| 蘇州話 | Suzhounese | 蘇州語 |
+| 上海話 | Shanghainese | 上海語 |
+| 蘇州評彈 | Pingtan pronunciation | 蘇州評弾 |
+
 ## 與字音站聯動
 
 頁面開啟時會在背景比對字音站線上 `DB_suhu.json` 的大小與 `Last-Modified`：

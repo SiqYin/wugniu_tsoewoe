@@ -55,17 +55,23 @@ border:1px solid var(--line2);color:var(--ink2)}
 .syncbar.warn{background:var(--warnbg);border-color:#f0c8c8;color:var(--warn)}
 .syncbar .dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
 
-.lang-switcher{position:absolute;top:0;right:0}
-.lang-btn{font-family:inherit;font-size:13px;color:var(--sys);background:#fff;
-border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer}
-.lang-btn:hover{background:var(--yin);border-color:var(--yinb)}
+/* 語言切換 —— 與字音站完全同一套設計 */
+.lang-switcher{position:absolute;top:0;right:0;z-index:100}
+.lang-btn{padding:6px 14px;font-size:.85em;background:#2980b9;color:#fff;
+border:none;border-radius:6px;cursor:pointer;white-space:nowrap;font-family:inherit}
+.lang-btn:hover{background:#1a6da2}
+.lang-btn .lang-caret{margin-left:7px;font-size:.78em;display:inline-block;
+transition:transform .15s ease}
+.lang-btn.open .lang-caret{transform:rotate(180deg)}
 .lang-menu{display:none;position:absolute;top:100%;right:0;margin-top:4px;
-background:#fff;border:1px solid var(--line);border-radius:6px;
-box-shadow:0 4px 14px rgba(26,82,118,.13);overflow:hidden;z-index:100;min-width:110px}
-.lang-menu.on{display:block}
-.lang-menu button{display:block;width:100%;text-align:left;font-family:inherit;font-size:13px;
-padding:6px 14px;background:none;border:0;cursor:pointer;color:var(--ink)}
-.lang-menu button:hover{background:var(--yin)}
+background:#fff;border:1px solid #ccc;border-radius:6px;
+box-shadow:0 3px 12px rgba(0,0,0,.15);overflow:hidden;min-width:110px;z-index:200}
+.lang-menu.open{display:block}
+.lang-menu-item{display:block;width:100%;padding:8px 16px;font-size:.9em;
+background:none;border:none;cursor:pointer;text-align:left;font-family:inherit;
+color:#1a2a3a;white-space:nowrap}
+.lang-menu-item:hover{background:#eef3f9}
+.lang-menu-item.active{font-weight:600;background:#d6e8f7}
 
 section{margin:22px 0}
 h2{color:var(--sys);font-size:19px;margin:0 0 10px;letter-spacing:.03em}
@@ -268,14 +274,14 @@ table.rules{font-size:12.5px}
 <div class="wrap">
 
 <header class="top">
-  <div class="lang-switcher">
-    <button class="lang-btn" id="langBtn" onclick="toggleLang()" aria-haspopup="true">
-      <span id="langCur">漢語</span> ▾
+  <div class="lang-switcher" id="langSwitcher">
+    <button class="lang-btn" id="langBtn" onclick="toggleLang()">
+      <span id="langBtnLabel">吳語</span><span class="lang-caret" aria-hidden="true">▾</span>
     </button>
     <div class="lang-menu" id="langMenu">
-      <button data-lang="wu" onclick="pickLang('wu')">漢語</button>
-      <button data-lang="en" onclick="pickLang('en')">English</button>
-      <button data-lang="ja" onclick="pickLang('ja')">日本語</button>
+      <button class="lang-menu-item active" data-lang="wu" onclick="pickLang('wu')">吳語</button>
+      <button class="lang-menu-item" data-lang="en" onclick="pickLang('en')">English</button>
+      <button class="lang-menu-item" data-lang="ja" onclick="pickLang('ja')">日本語</button>
     </div>
   </div>
   <h1 id="i-h1">蘇滬混合腔拼音轉換器</h1>
@@ -382,6 +388,8 @@ var lastText='';
 var I18N={
 wu:{
   h1:'蘇滬混合腔拼音轉換器',
+  lang_name:'吳語',
+  suhu_name:'蘇滬混合腔', wu_lang:'吳語',
   sub:'輸入漢字，輸出蘇滬混合腔拼音。字音即時取自字音站，本頁不自行推導。',
   m_han:'漢字拼音對照', m_py:'僅拼音',
   o_tone:'輸出帶調拼音', o_rom:'輸出拼音文',
@@ -412,13 +420,15 @@ wu:{
   footer:'字音資料來自 <a href="https://siqyin.github.io/wugniu_zyinzozin/" target="_blank" rel="noopener">吳語字音查詢</a>；韻圖位置標記來自 <a href="https://siqyin.github.io/wugniu_yundu/" target="_blank" rel="noopener">蘇滬混合腔韻圖</a>。本頁不自行推導字音。'
 },
 en:{
-  h1:'Su-Hu Mixed Register Romanizer',
-  sub:'Enter Han characters to get their Su-Hu mixed-register romanization. Readings come from the pronunciation database; nothing is derived here.',
+  h1:'Wu Common Language Romanizer',
+  lang_name:'Wu language',
+  suhu_name:'common language', wu_lang:'Wu language',
+  sub:'Enter Han characters to get their Wu Common Language romanization. Readings come from the pronunciation database; nothing is derived here.',
   m_han:'Han + romanization', m_py:'Romanization only',
   o_tone:'With tone numbers', o_rom:'Orthographic romanization',
   o_chars:'Show readings',
-  dialect:'Dialect: ', dl_suhu:'Su-Hu mixed', dl_qingmo:'Late-Qing Suzhou',
-  dl_suzhou:'Suzhou', dl_shanghai:'Shanghai', dl_pingtan:'Suzhou Pingtan',
+  dialect:'Dialect: ', dl_suhu:'common language', dl_qingmo:'Late Qing Suzhounese',
+  dl_suzhou:'Suzhounese', dl_shanghai:'Shanghainese', dl_pingtan:'Pingtan pronunciation',
   dl_note:'Each dialect converts independently; the four reference dialects take readings verbatim from the pronunciation site.',
   go:'Convert', clear:'Clear', copy:'Copy result',
   hint:'Traditional and simplified characters both work; punctuation and line breaks split sentences.',
@@ -443,13 +453,15 @@ en:{
   footer:'Readings from <a href="https://siqyin.github.io/wugniu_zyinzozin/" target="_blank" rel="noopener">Wu pronunciation lookup</a>; rhyme-chart positions from <a href="https://siqyin.github.io/wugniu_yundu/" target="_blank" rel="noopener">the Su-Hu rhyme chart</a>. Nothing is derived on this page.'
 },
 ja:{
-  h1:'蘇滬混合腔ローマ字変換器',
+  h1:'呉越共通語ローマ字変換器',
+  lang_name:'呉越語',
+  suhu_name:'呉越共通語', wu_lang:'呉越語',
   sub:'漢字を入力すると蘇滬混合腔のローマ字を出力します。字音は字音サイトのデータによるもので、本ページでは推導しません。',
   m_han:'漢字＋ローマ字', m_py:'ローマ字のみ',
   o_tone:'声調数字つき', o_rom:'正書法ローマ字',
   o_chars:'字音を表示',
-  dialect:'方言：', dl_suhu:'蘇滬混合腔', dl_qingmo:'清末蘇州話',
-  dl_suzhou:'蘇州話', dl_shanghai:'上海話', dl_pingtan:'蘇州評彈',
+  dialect:'方言：', dl_suhu:'呉越共通語', dl_qingmo:'清末蘇州語',
+  dl_suzhou:'蘇州語', dl_shanghai:'上海語', dl_pingtan:'蘇州評弾',
   dl_note:'五つの方言はそれぞれ独立に変換します。参考方言の字音は字音サイトのままです。',
   go:'変換', clear:'クリア', copy:'結果をコピー',
   hint:'繁体字・簡体字ともに対応。句読点と改行で文を区切ります。',
@@ -482,19 +494,129 @@ function applyLang(){
     rules_title:'i-rules-title',stats_title:'i-stats-title',seg_hint:'segHint'};
   for(var k in ids){ var el=document.getElementById(ids[k]); if(el) el.textContent=t(k); }
   document.getElementById('i-footer').innerHTML=t('footer');
+  /* 與字音站、韻圖站雙向語言聯動：外鏈帶上當前語言 */
+  document.querySelectorAll('#i-footer a[href*="wugniu_zyinzozin"],#i-footer a[href*="wugniu_yundu"]')
+    .forEach(function(a){
+      var base=a.getAttribute('href').split('?')[0];
+      a.setAttribute('href', base + '?lang=' + encodeURIComponent(lang));
+    });
   document.getElementById('src').placeholder=t('hint');
-  document.getElementById('langCur').textContent=lang==='en'?'English':(lang==='ja'?'日本語':'漢語');
+  /* 語言按鈕標籤與選中態（與字音站一致） */
+  var lbl=document.getElementById('langBtnLabel');
+  if(lbl) lbl.textContent = lang==='en'?'English':(lang==='ja'?'日本語':'吳語');
+  document.querySelectorAll('.lang-menu-item').forEach(function(b){
+    b.classList.toggle('active', b.dataset.lang===lang);
+  });
   if(LOADED) setSync('ok',t('sync_ok'));
   syncHuheUI();
   syncDialectUI();
   renderRules();
   if(document.getElementById('out').dataset.done==='1') doConvert();
 }
-function toggleLang(){ document.getElementById('langMenu').classList.toggle('on'); }
-function pickLang(l){ lang=l; try{localStorage.setItem('tsoewoe/lang',l);}catch(e){}
-  document.getElementById('langMenu').classList.remove('on'); applyLang(); }
+/* ============================ 語言切換（照搬字音站/韻圖站機制） ============================
+   優先級：?lang= 強制 > localStorage 手選 > 瀏覽器語言 > IP 歸屬地 > 英文兜底
+   本機 / file: / 爬蟲不自動判斷。
+   跨站聯動：字音站、韻圖站跳轉過來時都帶 ?lang=<code>，本站直接採用。
+   ------------------------------------------------------------------------------- */
+var LANG_KEY = 'wugniu-tsoewoe-lang';
+var LANG_REGIONS = { wu: ['CN','HK','MO','TW'], ja: ['JP'] };
+var LANG_SET = { wu:1, en:1, ja:1 };
+var GEO = 'https://api.country.is/';
+var GEO_ALT = 'https://www.cloudflare.com/cdn-cgi/trace';
+
+function toLang(code){
+  var c=String(code||'').toUpperCase();
+  for(var k in LANG_REGIONS){ if(LANG_REGIONS[k].indexOf(c)>=0) return k; }
+  return 'en';
+}
+
+function toggleLang(){
+  var m=document.getElementById('langMenu');
+  var b=document.getElementById('langBtn');
+  var open=!m.classList.contains('open');
+  m.classList.toggle('open', open);
+  if(b) b.classList.toggle('open', open);
+}
+function closeLangMenu(){
+  document.getElementById('langMenu').classList.remove('open');
+  var b=document.getElementById('langBtn'); if(b) b.classList.remove('open');
+}
+function pickLang(l){
+  if(!LANG_SET[l]) return;
+  lang=l;
+  try{ localStorage.setItem(LANG_KEY,l); }catch(e){}
+  closeLangMenu();
+  applyLang();
+}
+
+/* 依優先級自動判斷語言（只在沒有手選時生效） */
+function autoDetectLang(){
+  /* ① ?lang= 強制（含跨站聯動） */
+  var forced=null;
+  try{
+    var q=/[?&]lang=([a-z]+)/i.exec(location.search);
+    if(q){
+      forced=q[1].toLowerCase();
+      if(forced==='auto'){ try{ localStorage.removeItem(LANG_KEY); }catch(e){} forced=null; }
+    }
+  }catch(e){}
+  if(forced && LANG_SET[forced]){ lang=forced; return true; }
+
+  /* ② localStorage 手選：使用者的明確選擇永遠優先，本機預覽也照用 */
+  try{
+    var saved=localStorage.getItem(LANG_KEY);
+    if(saved && LANG_SET[saved]){ lang=saved; return true; }
+  }catch(e){}
+
+  /* ③ 本機預覽不自動判斷（但要放在手選之後） */
+  var H=location.hostname;
+  var online = location.protocol!=='file:' && H && H!=='localhost' && H!=='127.0.0.1' && H!=='::1';
+  /* ④ 爬蟲維持預設（吳語），免得搜尋引擎收錄到英文版 */
+  var isBot=/bot|crawler|spider|slurp|yandex|baiduspider|googlebot|bingbot/i.test(navigator.userAgent||'');
+  if(!online || isBot) return false;
+
+  /* ⑤ 瀏覽器語言（中文／日文零請求即可判定） */
+  var ls=(navigator.languages && navigator.languages.length)?navigator.languages:[navigator.language||''];
+  for(var i=0;i<ls.length;i++){
+    var l=String(ls[i]||'').toLowerCase();
+    if(/^zh(-|$)/.test(l)){ lang='wu'; return true; }
+    if(/^ja(-|$)/.test(l)){ lang='ja'; return true; }
+  }
+
+  /* ⑥ IP 歸屬地（非阻塞，先按預設顯示，拿到結果再切） */
+  geoDetect();
+  return false;
+}
+
+function geoDetect(){
+  var apply=function(c){
+    if(lang!=='wu' && lang!=='en') return;   /* 使用者已手選就不覆蓋 */
+    var l=toLang(c);
+    if(l!==lang){ lang=l; applyLang(); }
+  };
+  var alt=function(){
+    try{
+      var y=new XMLHttpRequest();
+      y.open('GET',GEO_ALT,true); y.timeout=1500;
+      y.onload=function(){
+        var mm=/(?:^|\n)loc=([A-Za-z]{2})/.exec(y.responseText||'');
+        apply(mm?mm[1]:'en');
+      };
+      y.send();
+    }catch(e){}
+  };
+  try{
+    var x=new XMLHttpRequest();
+    x.open('GET',GEO,true); x.timeout=1500;
+    x.onload=function(){
+      try{ apply(JSON.parse(x.responseText).country); }catch(e){ alt(); }
+    };
+    x.onerror=x.ontimeout=alt;
+    x.send();
+  }catch(e){ alt(); }
+}
 document.addEventListener('click',function(e){
-  if(!e.target.closest('.lang-switcher')) document.getElementById('langMenu').classList.remove('on');
+  if(!e.target.closest('.lang-switcher')) closeLangMenu();
   if(!e.target.closest('.huhe')) document.getElementById('huheMenu').classList.remove('on'); });
 
 /* ============================ 模式 ============================ */
@@ -1664,7 +1786,8 @@ function renderStats(){
 
 /* ============================ 啟動 ============================ */
 (function init(){
-  try{ var l=localStorage.getItem('tsoewoe/lang'); if(l&&I18N[l]) lang=l; }catch(e){}
+  /* 語言：先跑自動判斷（?lang= 強制／跨站聯動／localStorage／瀏覽器／IP） */
+  try{ autoDetectLang(); }catch(e){}
   try{ var h=localStorage.getItem('tsoewoe/huhe'); if(h) huheMode=h; }catch(e){}
   applyLang(); syncHuheUI(); updateSegVisibility(); loadAll();
 })();
