@@ -50,8 +50,12 @@ BRANCH = "main"
 
 OWNER = "SiqYin"
 NAME = "wugniu_tsoewoe"
-DESC = "吳語蘇滬混合腔拼音轉換器：漢字轉帶調拼音與拼音文，字音即時取自字音查詢站"
+DESC = "吳語拼音轉換器：漢字轉吳語五種方言讀音（蘇滬混合腔帶調拼音與拼音文），字音即時取自字音查詢站"
 HOMEPAGE = f"https://{OWNER.lower()}.github.io/{NAME}/"
+# 與字音站（wugniu_zyinzozin）、韻圖站（wugniu_yundu）的 topics 保持同族
+TOPICS = ["wugniu", "wu-chinese", "wuchinese", "chinese-dialects",
+          "suzhou-dialect", "shanghainese", "romanization", "pinyin",
+          "ipa", "linguistics", "github-pages"]
 
 
 def token() -> str | None:
@@ -137,6 +141,28 @@ def check_token(tok):
     return True
 
 
+def sync_repo_meta(tok, repo):
+    """把倉庫 About（描述、主頁）與 topics（標籤）同步成本檔的設定。
+
+    每次發布都跑一遍：站名或定位改了，改本檔頂部 DESC / TOPICS 即可，
+    不用去網頁上手工改。
+    """
+    print("· 同步倉庫 About 與 topics……")
+    st, res = api(f"/repos/{repo}", tok, "PATCH",
+                  {"description": DESC, "homepage": HOMEPAGE})
+    if st == 200:
+        print(f"  ✓ 描述：{DESC}")
+        print(f"  ✓ 主頁：{HOMEPAGE}")
+    else:
+        print(f"  ✗ 更新描述失敗（HTTP {st}）：{res}")
+
+    st, res = api(f"/repos/{repo}/topics", tok, "PUT", {"names": TOPICS})
+    if st == 200:
+        print(f"  ✓ topics：{'、'.join(TOPICS)}")
+    else:
+        print(f"  ✗ 更新 topics 失敗（HTTP {st}）：{res}")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--owner", default=OWNER)
@@ -196,7 +222,7 @@ def main():
     git("config", "user.email", f"{a.owner}@users.noreply.github.com")
     git("add", "-A")
     if git("status", "--porcelain"):
-        msg = a.message or "蘇滬混合腔拼音轉換器：轉換頁面、正字法、分詞與霞鶩文楷字型"
+        msg = a.message or "吳語拼音轉換器：轉換頁面、正字法、分詞與霞鶩文楷字型"
         git("commit", "-m", msg)
         print("· 已提交")
     else:
@@ -234,7 +260,13 @@ def main():
         print(f"· 已推送（HTTPS）到 {repo}")
         git(f"branch", f"--set-upstream-to=origin/{BRANCH}", check=False)
 
-    # 4) 開 Pages
+    # 4) 同步 About 與 topics（--no-api 時無權杖，跳過）
+    if a.no_api:
+        print("· --no-api：跳過 About / topics 同步")
+    else:
+        sync_repo_meta(tok, repo)
+
+    # 5) 開 Pages
     if a.no_api:
         print("· --no-api：Pages 由 .github/workflows/pages.yml 自動開啟")
     else:
@@ -251,7 +283,7 @@ def main():
                 print(f"  可手動到 https://github.com/{repo}/settings/pages "
                       f"選 {BRANCH} 分支根目錄")
 
-        # 5) 等首次部署
+        # 6) 等首次部署
         print("· 等待 Pages 首次部署（最多 5 分鐘）……")
         for _ in range(60):
             time.sleep(5)

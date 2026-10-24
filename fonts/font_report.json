@@ -1,0 +1,18 @@
+{
+ "ui": {
+  "chars": 832,
+  "codepoints": 829,
+  "mb": 0.16
+ },
+ "dict": {
+  "chars": 11259,
+  "codepoints": 11079,
+  "mb": 2.69
+ },
+ "ext": {
+  "codepoints": 44343,
+  "mb": 7.44
+ },
+ "kana": "157/192",
+ "missing": " "
+}

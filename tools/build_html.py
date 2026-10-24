@@ -45,7 +45,9 @@ CSS = r"""
 html,body{height:100%}
 body{
 margin:0;background:var(--bg);color:var(--ink);
-font-family:"LXGW WenKai","SimSun-ExtB","MingLiU-ExtB","Songti SC","Source Han Serif SC","Noto Serif CJK SC",Georgia,"SimSun",serif;
+/* 字型棧：霞鶩文楷三片（ui/dict/ext）→ 系統字型回退。
+   「LXGW WenKai Fallback」是第三片完整字集，缺了它生僻字／日文漢字就會掉字。 */
+font-family:"LXGW WenKai","LXGW WenKai Fallback","SimSun-ExtB","MingLiU-ExtB","Songti SC","Source Han Serif SC","Noto Serif CJK SC",Georgia,"SimSun",serif;
 font-size:15px;line-height:1.75;
 -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;
 display:flex;flex-direction:column;min-height:100vh;
@@ -293,7 +295,7 @@ BODY = r"""
       <button class="lang-menu-item" data-lang="ja" onclick="pickLang('ja')">日本語</button>
     </div>
   </div>
-  <h1 id="i-h1">蘇滬混合腔拼音轉換器</h1>
+  <h1 id="i-h1">吳語拼音轉換器</h1>
   <p class="sub" id="i-sub"></p>
   <div class="syncbar" id="syncbar"><span class="dot"></span><span id="syncText"></span></div>
 </header>
@@ -366,7 +368,7 @@ BODY = r"""
 # ============================================================ JS
 JS = r"""
 /* ===================================================================
-   蘇滬混合腔拼音轉換器 —— 前端
+   吳語拼音轉換器 —— 前端
    -------------------------------------------------------------------
    本頁**不推導字音**。所有讀音來自字音站的 DB_suhu.json（經 tools/ 預處理）：
      dict.json     chars（繁字→[[音節,音標,註記],...]）/ s2t / pos
@@ -398,10 +400,10 @@ var lastText='';
 /* ============================ 語言 ============================ */
 var I18N={
 wu:{
-  h1:'蘇滬混合腔拼音轉換器',
+  h1:'吳語拼音轉換器',
   lang_name:'吳語',
   suhu_name:'蘇滬混合腔', wu_lang:'吳語',
-  sub:'輸入漢字，輸出蘇滬混合腔拼音。字音即時取自字音站，本頁不自行推導。',
+  sub:'輸入漢字，輸出吳語讀音。五種方言可選：蘇滬混合腔、清末蘇州話、蘇州話、上海話、蘇州評彈。字音即時取自字音站，本頁不自行推導。',
   m_han:'漢字拼音對照', m_py:'僅拼音',
   o_tone:'輸出帶調拼音', o_rom:'輸出拼音文',
   o_chars:'輸出字音',
@@ -431,10 +433,10 @@ wu:{
   footer:'字音資料來自 <a href="https://siqyin.github.io/wugniu_zyinzozin/" target="_blank" rel="noopener">吳語字音查詢</a>；韻圖位置標記來自 <a href="https://siqyin.github.io/wugniu_yundu/" target="_blank" rel="noopener">蘇滬混合腔韻圖</a>。本頁不自行推導字音。'
 },
 en:{
-  h1:'Wu Common Language Romanizer',
+  h1:'Wu Language Romanizer',
   lang_name:'Wu language',
   suhu_name:'common language', wu_lang:'Wu language',
-  sub:'Enter Han characters to get their Wu Common Language romanization. Readings come from the pronunciation database; nothing is derived here.',
+  sub:'Enter Han characters to get their Wu language readings. Five dialects: common language, Late Qing Suzhounese, Suzhounese, Shanghainese, Pingtan pronunciation. Readings come from the pronunciation database; nothing is derived here.',
   m_han:'Han + romanization', m_py:'Romanization only',
   o_tone:'With tone numbers', o_rom:'Orthographic romanization',
   o_chars:'Show readings',
@@ -464,10 +466,10 @@ en:{
   footer:'Readings from <a href="https://siqyin.github.io/wugniu_zyinzozin/" target="_blank" rel="noopener">Wu pronunciation lookup</a>; rhyme-chart positions from <a href="https://siqyin.github.io/wugniu_yundu/" target="_blank" rel="noopener">the Su-Hu rhyme chart</a>. Nothing is derived on this page.'
 },
 ja:{
-  h1:'呉越共通語ローマ字変換器',
+  h1:'呉越語ローマ字変換器',
   lang_name:'呉越語',
   suhu_name:'呉越共通語', wu_lang:'呉越語',
-  sub:'漢字を入力すると蘇滬混合腔のローマ字を出力します。字音は字音サイトのデータによるもので、本ページでは推導しません。',
+  sub:'漢字を入力すると呉越語の読みを出力します。方言は五種：呉越共通語・清末蘇州語・蘇州語・上海語・蘇州評弾。字音は字音サイトのデータによるもので、本ページでは推導しません。',
   m_han:'漢字＋ローマ字', m_py:'ローマ字のみ',
   o_tone:'声調数字つき', o_rom:'正書法ローマ字',
   o_chars:'字音を表示',
@@ -1758,7 +1760,7 @@ function renderRules(){
     ['其餘調類（2・3・5・6・7・8）','一律不標','<code>作興 tsoq7shin1</code> → <code>tsoqshin</code>'],
     ['小撇字元','一律 U+0027 APOSTROPHE，不用 U+2019','<code>\'</code> = U+0027'],
     ['句首大寫','句首的第一個字母要大寫，無論它前面有沒有小撇','<code>\'ershi</code> → <code>\'Ershi</code>'],
-    ['多音字','全部標紅；預設取一個音，點擊可從全部字音中挑選','<code>儂 non6</code>（另有 non2 / ne6）']
+    ['多音字','以藍色標示；預設取一個音，點擊可從全部字音中挑選','<code>儂 non6</code>（另有 non2 / ne6）']
   ]:[
     ['Join within a word','Syllables of one word are written together; words are separated by spaces','<code>白相 beq8sian1</code> → <code>beqsian</code>'],
     ['Word-initial tone 1','Apostrophe before the syllable','<code>雞排 ci1ba2</code> → <code>\'ciba</code>'],
@@ -1768,7 +1770,19 @@ function renderRules(){
     ['All other tones (2/3/5/6/7/8)','No mark','<code>作興 tsoq7shin1</code> → <code>tsoqshin</code>'],
     ['Apostrophe','Always U+0027 APOSTROPHE, never U+2019','<code>\'</code> = U+0027'],
     ['Sentence case','The first letter of a sentence is capitalised, apostrophe or not','<code>\'ershi</code> → <code>\'Ershi</code>'],
-    ['Polyphonic characters','All shown in red; a default is chosen, click to pick any reading','<code>儂 non6</code> (also non2 / ne6)']
+    ['Polyphonic characters','All shown in blue; a default is chosen, click to pick any reading','<code>儂 non6</code> (also non2 / ne6)']
+  ];
+  /* 日文規則表（原本誤用英文，現補齊） */
+  if(lang==='ja') rows=[
+    ['語内連写','語を単位として音節を連写し、語と語の間は空格で区切る','<code>白相 beq8sian1</code> → <code>beqsian</code>；<code>去白相 chi5 beq8sian1</code> → <code>chi beqsian</code>'],
+    ['語頭の陰平（調 1）','語頭音節の前にアポストロフィを付ける','<code>雞排 ci1ba2</code> → <code>\'ciba</code>'],
+    ['語頭 m/n/l/gn ＋ 調 3・5・7','声母の後・韻母の前にアポストロフィを付ける','<code>美好 me3hau3</code> → <code>m\'ehau</code>'],
+    ['語頭 m/n/l/gn ＋ 調 1','音節の前にアポストロフィを一つだけ付ける','<code>蠻好 me1hau3</code> → <code>\'mehau</code>'],
+    ['語頭 er1','音節の前にアポストロフィを付ける','<code>兒戲 er1shi5</code> → <code>\'ershi</code>'],
+    ['その他の調類（2・3・5・6・7・8）','一切付けない','<code>作興 tsoq7shin1</code> → <code>tsoqshin</code>'],
+    ['アポストロフィ','常に U+0027 APOSTROPHE、U+2019 は使わない','<code>\'</code> = U+0027'],
+    ['文頭の大文字','文の最初の文字は大文字にする（アポストロフィの有無を問わない）','<code>\'ershi</code> → <code>\'Ershi</code>'],
+    ['多音字','青色で表示；既定の読みを一つ示し、クリックで他の読みを選べる','<code>儂 non6</code>（他に non2 / ne6）']
   ];
   var html='<table class="rules"><thead><tr>'+head.map(function(h){
     return '<th>'+h+'</th>'; }).join('')+'</tr></thead><tbody>';
@@ -1810,11 +1824,11 @@ HEAD = """<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>蘇滬混合腔拼音轉換器</title>
-<meta name="description" content="把漢字轉換成吳語蘇滬混合腔拼音（帶調拼音與拼音文正字法）。字音即時取自吳語字音查詢站，不自行推導。">
+<title>吳語拼音轉換器</title>
+<meta name="description" content="吳語拼音轉換器：把漢字轉換成吳語五種方言的讀音（蘇滬混合腔帶調拼音與拼音文正字法）。字音即時取自吳語字音查詢站，不自行推導。">
 <meta name="theme-color" content="#1a5276">
-<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48 64x64">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="favicon.ico?v=2" sizes="16x16 32x32 48x48 64x64">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=2">
 <style>
 __FONTFACE__
 __CSS__

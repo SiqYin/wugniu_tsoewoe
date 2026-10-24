@@ -1,6 +1,6 @@
-# 蘇滬混合腔拼音轉換器
+# 吳語拼音轉換器
 
-把漢字轉換成**吳語蘇滬混合腔**拼音的網頁工具。線上版：<https://siqyin.github.io/wugniu_tsoewoe/>
+把漢字轉換成**吳語**讀音的網頁工具，支持五種方言（蘇滬混合腔、清末蘇州話、蘇州話、上海話、蘇州評彈）。線上版：<https://siqyin.github.io/wugniu_tsoewoe/>
 
 與 [吳語字音查詢](https://siqyin.github.io/wugniu_zyinzozin/)、[蘇滬混合腔韻圖](https://siqyin.github.io/wugniu_yundu/) 同一套配色與字型，同為純靜態 GitHub Pages 頁面。
 

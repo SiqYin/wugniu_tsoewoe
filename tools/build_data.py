@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""build_data.py —— 蘇滬混合腔拼音轉換器 · 資料構建
+"""build_data.py —— 吳語拼音轉換器 · 資料構建
 
 輸入（全部來自字音站 wugniu_zyinzozin，唯讀抓取）：
   data/DB_suhu.json   —— 蘇滬混合腔字音本體（繁體字為鍵）
