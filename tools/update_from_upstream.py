@@ -30,6 +30,11 @@ FILES = {
     "DB_suhu.json": BASE + "DB_suhu.json",
     "S2T.json": BASE + "S2T.json",
     "YUNTU_POS.json": BASE + "YUNTU_POS.json",
+    # 四種參考方言（原樣取自字音站，不推導）
+    "DB_qingmo.json": BASE + "DB_qingmo.json",
+    "DB_suzhou.json": BASE + "DB_suzhou.json",
+    "DB_shanghai.json": BASE + "DB_shanghai.json",
+    "DB_pingtan.json": BASE + "DB_pingtan.json",
 }
 
 
@@ -102,7 +107,7 @@ def main():
     print("\n重建資料 …")
     py = sys.executable
     for step in ("build_data.py", "build_lexicon.py", "build_readings.py",
-                 "build_huhe.py", "build_html.py"):
+                 "build_huhe.py", "build_dialects.py", "build_html.py"):
         print(f"  {step}")
         r = subprocess.run([py, os.path.join(HERE, step)], cwd=ROOT,
                            env={**os.environ, "PYTHONIOENCODING": "utf-8"})

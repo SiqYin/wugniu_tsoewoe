@@ -26,6 +26,8 @@ REQUIRED = [
     "data/dict.json", "data/defaults.json", "data/words.json", "data/rules.json",
     "data/lexicon.json", "data/meta.json", "data/huhe.json", "data/syl.json",
     "data/variants.json",
+    "data/dialect_qingmo.json", "data/dialect_suzhou.json",
+    "data/dialect_shanghai.json", "data/dialect_pingtan.json",
     "data/DB_suhu.json", "data/S2T.json", "data/YUNTU_POS.json",
     "fonts/wk-ui.woff2", "fonts/wk-dict.woff2", "fonts/fontface.css", "fonts/OFL.txt",
 ]

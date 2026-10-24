@@ -19,6 +19,10 @@
 --yin:#e8f0f8; --yinb:#2980b9;
 --sys:#1a5276; --sys2:#1a6da2;
 --warn:#c0392b; --warnbg:#fdf0f0;
+/* 多音字／多繁體候選：標藍（原標紅，使用者要求改藍） */
+--multi:#1a6da2; --multibg:#eaf3fb;
+/* 真正缺字（該方言未收）：標紅，與上面的「多音標藍」明確區分 */
+--miss:#c0392b; --missbg:#fdf0f0;
 --ok:#2e7d4f; --okbg:#eef7f1;
 /* 全站一律藍色系（與字音站、韻圖站一致）；不再使用黃／棕／金 */
 --sel:#2980b9;        /* 選中／強調 */
@@ -73,6 +77,17 @@ border:1px solid var(--line);border-radius:6px;padding:7px 16px;cursor:pointer;t
 .mode-btn:hover{background:var(--yin);border-color:var(--yinb)}
 .mode-btn.on{background:var(--yinb);border-color:var(--yinb);color:#fff;font-weight:700}
 .modes .sep{width:1px;background:var(--line);margin:2px 4px}
+/* 方言選擇列 */
+.dialects{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 10px;
+padding:10px 12px;background:#f4f8fd;border:1px solid var(--line2);border-radius:8px}
+.dialects .dl-label{font-size:13px;color:var(--ink2);margin-right:2px;white-space:nowrap}
+.dl-btn{font-family:inherit;font-size:13.5px;color:var(--sys);background:#fff;
+border:1px solid var(--line);border-radius:6px;padding:5px 13px;cursor:pointer;transition:.15s}
+.dl-btn:hover{background:var(--yin);border-color:var(--yinb)}
+.dl-btn.on{background:var(--sys);border-color:var(--sys);color:#fff;font-weight:700}
+/* 非蘇滬混合腔時，河湖韻按鈕與拼音文模式不可用 */
+.mode-btn.disabled,.dl-btn.disabled{opacity:.38;cursor:not-allowed}
+.mode-btn.disabled:hover{background:#fff;border-color:var(--line);color:var(--sys)}
 .modes{position:relative}
 .mode-btn.huhe{display:flex;align-items:center;gap:4px}
 .mode-btn.huhe #huheCur{font-weight:400;color:var(--sel);font-size:13px}
@@ -168,10 +183,18 @@ letter-spacing:.02em;word-break:break-word;margin-top:2px}
 .tok{display:inline-block;position:relative;cursor:pointer;border-radius:4px;
 padding:0 1px;transition:.12s;white-space:pre}
 .tok:hover{background:var(--yin)}
-.tok.var{color:var(--warn)}
+/* 多音字／多繁體候選 —— 標藍 */
+.tok.var{color:var(--multi)}
 .tok.var::after{content:"";position:absolute;left:1px;right:1px;bottom:-1px;height:2px;
-background:var(--warn);border-radius:1px;opacity:.7}
-.tok.unk{color:var(--ink3);text-decoration:underline dotted var(--ink3)}
+background:var(--multi);border-radius:1px;opacity:.65}
+/* 該方言未收 —— 直接把該字標紅（不加任何標記文字） */
+.tok.unk{color:var(--miss)}
+.tok.unk::after{content:"";position:absolute;left:1px;right:1px;bottom:-1px;height:2px;
+background:var(--miss);border-radius:1px;opacity:.55}
+/* 拼音行裡的缺字佔位（xxxx0 / xxxx） */
+.tok.miss{color:var(--miss)}
+.tok.miss::after{content:"";position:absolute;left:1px;right:1px;bottom:-1px;height:2px;
+background:var(--miss);border-radius:1px;opacity:.55}
 .tok.picked{background:var(--selbg2);box-shadow:inset 0 0 0 1px var(--sel)}
 .tokword{display:inline-block;margin-right:.34em}
 .punct-tok{color:var(--ink2);cursor:default;white-space:pre}
@@ -261,6 +284,14 @@ table.rules{font-size:12.5px}
 </header>
 
 <section>
+  <div class="dialects" id="dialectRow">
+    <span class="dl-label" id="i-dialect"></span>
+    <button class="dl-btn on" data-dl="suhu" onclick="pickDialect('suhu')" id="d-suhu"></button>
+    <button class="dl-btn" data-dl="qingmo" onclick="pickDialect('qingmo')" id="d-qingmo"></button>
+    <button class="dl-btn" data-dl="suzhou" onclick="pickDialect('suzhou')" id="d-suzhou"></button>
+    <button class="dl-btn" data-dl="shanghai" onclick="pickDialect('shanghai')" id="d-shanghai"></button>
+    <button class="dl-btn" data-dl="pingtan" onclick="pickDialect('pingtan')" id="d-pingtan"></button>
+  </div>
   <div class="modes">
     <button class="mode-btn on" data-mode="han" onclick="setMode('han')" id="m-han"></button>
     <button class="mode-btn" data-mode="py" onclick="setMode('py')" id="m-py"></button>
@@ -336,6 +367,9 @@ var lang='wu';
 var huheMode='default';   // default | hu | he —— 河湖韻處理（優先於逐字默認音）
 var HUHE=null;            // 湖/河變體對照表
 var VARIANTS=null;        // 簡→繁候選組（仿切韻推導器的異體字展開）
+var DIALECT='suhu';       // 目前方言：suhu | qingmo | suzhou | shanghai | pingtan
+var DLDATA=null;          // 非蘇滬方言的字表 {chars:{字:[[音標,註記],...]}}
+var DL_CACHE={};          // 各參考方言快取，避免重複抓取
 
 /* 使用者選定的讀音：key = 全域字元索引, value = {ci: 繁候選索引, ri: 讀音索引} */
 var picks={};
@@ -351,6 +385,10 @@ wu:{
   sub:'輸入漢字，輸出蘇滬混合腔拼音。字音即時取自字音站，本頁不自行推導。',
   m_han:'漢字拼音對照', m_py:'僅拼音',
   o_tone:'輸出帶調拼音', o_rom:'輸出拼音文',
+  o_chars:'輸出字音',
+  dialect:'方言：', dl_suhu:'蘇滬混合腔', dl_qingmo:'清末蘇州話',
+  dl_suzhou:'蘇州話', dl_shanghai:'上海話', dl_pingtan:'蘇州評彈',
+  dl_note:'五種方言各自獨立轉換，互不混用；此四種參考方言的字音原樣取自字音站。',
   go:'轉換', clear:'清空', copy:'複製結果',
   hint:'支援繁體與簡體；標點與換行會切分句子。',
   out_title:'轉換結果', rules_title:'拼音文規則', stats_title:'資料統計',
@@ -360,8 +398,9 @@ wu:{
   sync_stale:'字音站有更新，本頁資料會在下次建置時同步（見 README）',
   sync_fail:'無法讀取字音資料，請檢查網路後重新整理',
   empty:'請先輸入漢字。', nocopy:'沒有可複製的內容。', copied:'已複製。',
-  no_read:'此字在字音站未收錄。',
-  alt_label:'簡體對應：', var_hint:'紅色為多音字，點擊可選擇其他讀音。',
+  no_read:'下列字在該方言中未收錄（已標紅）：',
+  alt_label:'簡體對應：',
+  var_hint:'藍色為多音字（或多繁體候選），點擊可選擇其他讀音；紅色為該方言未收的字。',
   note_untone:'無調讀音', note_choosing:'點擊該字可從全部字音中挑選。',
   huhe:'河湖韻處理', huhe_default:'蘇滬混合腔默認', huhe_hu:'全走湖韻', huhe_he:'全走河韻',
   huhe_hint:'湖韻〔uᵝ〕與河韻〔əuᵝ〕是同一個音位的兩個音值變體。此設定優先於逐字默認音。',
@@ -377,6 +416,10 @@ en:{
   sub:'Enter Han characters to get their Su-Hu mixed-register romanization. Readings come from the pronunciation database; nothing is derived here.',
   m_han:'Han + romanization', m_py:'Romanization only',
   o_tone:'With tone numbers', o_rom:'Orthographic romanization',
+  o_chars:'Show readings',
+  dialect:'Dialect: ', dl_suhu:'Su-Hu mixed', dl_qingmo:'Late-Qing Suzhou',
+  dl_suzhou:'Suzhou', dl_shanghai:'Shanghai', dl_pingtan:'Suzhou Pingtan',
+  dl_note:'Each dialect converts independently; the four reference dialects take readings verbatim from the pronunciation site.',
   go:'Convert', clear:'Clear', copy:'Copy result',
   hint:'Traditional and simplified characters both work; punctuation and line breaks split sentences.',
   out_title:'Result', rules_title:'Orthography rules', stats_title:'Data',
@@ -386,8 +429,9 @@ en:{
   sync_stale:'Upstream has newer readings; this page syncs on the next build (see README).',
   sync_fail:'Could not load pronunciation data. Check your connection and reload.',
   empty:'Please enter some characters first.', nocopy:'Nothing to copy.', copied:'Copied.',
-  no_read:'This character is not in the database.',
-  alt_label:'Simplified for: ', var_hint:'Red characters have multiple readings; click to choose.',
+  no_read:'Not found in this dialect (shown in red):',
+  alt_label:'Simplified for: ',
+  var_hint:'Blue = multiple readings (or multiple traditional forms); click to choose. Red = not found in this dialect.',
   note_untone:'toneless reading', note_choosing:'Click the character to pick among all readings.',
   huhe:'Hu/He finals', huhe_default:'Su-Hu default', huhe_hu:'All Hu', huhe_he:'All He',
   huhe_hint:'Hu [uᵝ] and He [əuᵝ] are free variants of one phoneme. This overrides per-character defaults.',
@@ -403,6 +447,10 @@ ja:{
   sub:'漢字を入力すると蘇滬混合腔のローマ字を出力します。字音は字音サイトのデータによるもので、本ページでは推導しません。',
   m_han:'漢字＋ローマ字', m_py:'ローマ字のみ',
   o_tone:'声調数字つき', o_rom:'正書法ローマ字',
+  o_chars:'字音を表示',
+  dialect:'方言：', dl_suhu:'蘇滬混合腔', dl_qingmo:'清末蘇州話',
+  dl_suzhou:'蘇州話', dl_shanghai:'上海話', dl_pingtan:'蘇州評彈',
+  dl_note:'五つの方言はそれぞれ独立に変換します。参考方言の字音は字音サイトのままです。',
   go:'変換', clear:'クリア', copy:'結果をコピー',
   hint:'繁体字・簡体字ともに対応。句読点と改行で文を区切ります。',
   out_title:'変換結果', rules_title:'正書法の規則', stats_title:'データ',
@@ -412,8 +460,9 @@ ja:{
   sync_stale:'字音サイトに更新があります。次回ビルドで反映されます（README 参照）。',
   sync_fail:'字音データを取得できません。接続を確認して再読み込みしてください。',
   empty:'漢字を入力してください。', nocopy:'コピーする内容がありません。', copied:'コピーしました。',
-  no_read:'この字はデータベースにありません。',
-  alt_label:'簡体字：', var_hint:'赤字は多音字です。クリックで読みを選べます。',
+  no_read:'この方言に未収録の字（赤字）：',
+  alt_label:'簡体字：',
+  var_hint:'青字は多音字（または複数の繁体字候補）です。クリックで選べます。赤字はこの方言に未収録の字です。',
   note_untone:'声調なしの読み', note_choosing:'文字をクリックすると全ての読みから選べます。',
   huhe:'湖韻／河韻の扱い', huhe_default:'蘇滬混合腔デフォルト', huhe_hu:'全て湖韻', huhe_he:'全て河韻',
   huhe_hint:'湖韻〔uᵝ〕と河韻〔əuᵝ〕は同一音素の自由変異です。この設定は字ごとの既定読みより優先されます。',
@@ -437,6 +486,7 @@ function applyLang(){
   document.getElementById('langCur').textContent=lang==='en'?'English':(lang==='ja'?'日本語':'漢語');
   if(LOADED) setSync('ok',t('sync_ok'));
   syncHuheUI();
+  syncDialectUI();
   renderRules();
   if(document.getElementById('out').dataset.done==='1') doConvert();
 }
@@ -498,6 +548,12 @@ function loadAll(){
     HUHE=r[6]; VARIANTS=r[7];
     LOADED=true; setSync('ok',t('sync_ok')); renderStats();
     checkUpstream();
+    /* 還原上次選擇的方言（預設蘇滬混合腔） */
+    try{
+      var dl=localStorage.getItem('tsoewoe/dialect');
+      if(dl && DL_META[dl] && dl!=='suhu'){ pickDialect(dl); }
+      else { syncDialectUI(); }
+    }catch(e){ syncDialectUI(); }
   }).catch(function(e){ console.error(e); setSync('warn',t('sync_fail')); });
 }
 
@@ -555,12 +611,92 @@ function syncHuheUI(){
   document.getElementById('h-btn').classList.toggle('on', huheMode!=='default');
 }
 
+/* ============================ 方言切換 ============================
+   五種方言各自獨立：蘇滬混合腔用本站既有資料（dict/defaults/words/…），
+   其餘四種原樣取自字音站，按需載入 data/dialect_<code>.json。
+   切換時清空所有使用者選擇，避免方言之間串音。
+   ------------------------------------------------------------------- */
+var DL_META = {
+  suhu:     {key:'dl_suhu',     file:null},
+  qingmo:   {key:'dl_qingmo',   file:'data/dialect_qingmo.json'},
+  suzhou:   {key:'dl_suzhou',   file:'data/dialect_suzhou.json'},
+  shanghai: {key:'dl_shanghai', file:'data/dialect_shanghai.json'},
+  pingtan:  {key:'dl_pingtan',  file:'data/dialect_pingtan.json'}
+};
+
+function isSuhu(){ return DIALECT==='suhu'; }
+
+function pickDialect(code){
+  if(!DL_META[code] || code===DIALECT) return;
+  DIALECT=code;
+  try{ localStorage.setItem('tsoewoe/dialect', code); }catch(e){}
+  /* 清空使用者選擇，避免跨方言串音 */
+  picks={}; seps=null; sepsDeleted=null; lastText='';
+  document.querySelectorAll('[data-dl]').forEach(function(b){
+    b.classList.toggle('on', b.dataset.dl===code);
+  });
+  syncDialectUI();
+  loadDialect(code).then(function(){
+    if(needSeg()) renderSegEditor();
+    if(document.getElementById('out').dataset.done==='1') doConvert();
+  });
+}
+
+function loadDialect(code){
+  if(code==='suhu' || DL_CACHE[code]){ DLDATA = (code==='suhu')?null:DL_CACHE[code]; return Promise.resolve(); }
+  var meta=DL_META[code];
+  if(!meta||!meta.file) return Promise.resolve();
+  setSync('', t('sync_loading'));
+  return getJSON(meta.file, null).then(function(d){
+    if(d){ DL_CACHE[code]=d; if(DIALECT===code) DLDATA=d; }
+    setSync('ok', t('sync_ok'));
+  }).catch(function(){
+    setSync('warn', t('sync_fail'));
+  });
+}
+
+/* 切換方言時更新按鈕文字與可用性 */
+function syncDialectUI(){
+  var lbl=document.getElementById('i-dialect');
+  if(lbl) lbl.textContent=t('dialect');
+  ['suhu','qingmo','suzhou','shanghai','pingtan'].forEach(function(c){
+    var b=document.getElementById('d-'+c);
+    if(b) b.textContent=t(DL_META[c].key);
+  });
+  /* 輸出格式：蘇滬混合腔有「帶調拼音／拼音文」，其餘四種只有「輸出字音」 */
+  var oTone=document.getElementById('o-tone');
+  var oRom=document.getElementById('o-rom');
+  if(isSuhu()){
+    if(oTone) oTone.textContent=t('o_tone');
+    if(oRom){
+      oRom.textContent=t('o_rom');
+      oRom.style.display='';
+      oRom.classList.remove('disabled');
+    }
+    var hb=document.getElementById('h-btn');
+    if(hb){ hb.style.display=''; hb.classList.remove('disabled'); }
+  }else{
+    /* 非蘇滬：第一顆改成「輸出字音」，第二顆（拼音文）隱藏 */
+    if(oTone) oTone.textContent=t('o_chars');
+    if(oRom){ oRom.style.display='none'; oRom.classList.remove('on'); }
+    outMode='tone';
+    var hb2=document.getElementById('h-btn');
+    if(hb2){ hb2.style.display='none'; }
+  }
+}
+
 /* ============================ 讀音 ============================ */
 /* 某字的候選組 —— 仿切韻推導器 convertArticle 的「異體字展開」思路：
    把該字與它對應的繁體字一起查，每個「不同的字 + 不同讀音」就是一個候選。
    繁體為標準形，所以繁體排在前面；一簡多繁時前端標紅，讓使用者自己挑。
    ------------------------------------------------------------------- */
 function candidates(ch, wordHint){
+  if(!isSuhu()){
+    if(!DLDATA || !DLDATA.chars) return [];
+    var rr=DLDATA.chars[ch];
+    if(!rr || !rr.length) return [];
+    return [{ch:ch, readings:rr}];
+  }
   if(!DICT) return [];
 
   /* ① 詞級例外：如「个人」「个体」裡的「个」→「個」 */
@@ -607,6 +743,19 @@ function candidates(ch, wordHint){
 
 /* 該字目前選定的讀音。wordHint = 該字所屬的詞（單字成詞就是它自己） */
 function resolve(ch,idx,wordHint){
+  /* 非蘇滬混合腔：原樣取字音站的音標，不做任何音系處理 */
+  if(!isSuhu()){
+    var dl=DLDATA;
+    if(!dl || !dl.chars){ return {ok:false,ch:ch,dialect:DIALECT}; }
+    var rs=dl.chars[ch];
+    if(!rs || !rs.length) return {ok:false,ch:ch,dialect:DIALECT};
+    var p=picks[idx]||{};
+    var ri=(p.ri!==undefined && p.ri<rs.length)?p.ri:0;
+    var rd=rs[ri];
+    return {ok:true, ch:ch, ci:0, ri:ri, readings:rs, cands:[{ch:ch,readings:rs}],
+            syl:rd[0], origSyl:rd[0], ipa:rd[0], note:rd[1]||'',
+            multi:(rs.length>1)};
+  }
   var cands=candidates(ch, wordHint);
   if(!cands.length) return {ok:false,ch:ch};
   var p=picks[idx]||{};
@@ -764,6 +913,16 @@ function allHan(a){ for(var i=0;i<a.length;i++){ if(!isHan(a[i])) return false; 
 
 /* 正向最大匹配：先取最長的吳語詞；同長度取權重高的 */
 function autoSegment(chars){
+  /* 非蘇滬混合腔：沒有對應詞表，逐字切分（標點仍附著前一字） */
+  if(!isSuhu()){
+    var o2=[];
+    for(var k=0;k<chars.length;k++){
+      if(!isHan(chars[k])){
+        if(o2.length) o2[o2.length-1].push(chars[k]); else o2.push([chars[k]]);
+      }else o2.push([chars[k]]);
+    }
+    return o2;
+  }
   var out=[], i=0, n=chars.length, maxL=LEX?LEX.maxLen:1;
   while(i<n){
     if(!isHan(chars[i])){
@@ -1100,8 +1259,8 @@ function doConvert(){
     pyline.className='pyline'+(mode==='py'?' plain':'');
 
     if(outMode==='rom'){
-      /* 拼音文：詞內連寫、詞間空格、句首大寫 */
-      /* 詞與詞之間空格；以標點開頭的「詞」緊貼前文、不另加空格 */
+      /* 拼音文：詞內連寫、詞間空格、句首大寫
+         缺字（該方言未收）→ 單獨成詞，寫作 xxxx，前後各留一個空格，標紅 */
       var out='', pos=0;
       words.forEach(function(word){
         var syls=[], ok=true, allPunct=true;
@@ -1113,12 +1272,64 @@ function doConvert(){
           if(!it.res.ok){ ok=false; continue; }
           syls.push(it.res.syl);
         }
-        var piece=(ok&&syls.length)?orthographize(syls):word.join('');
+        var piece;
+        if(!ok){
+          /* 整個詞裡有缺字：該詞改用「逐字 xxxx 串」，每個缺字單獨成詞 */
+          piece='\\u0000MISS\\u0000';
+        }else{
+          piece=(syls.length)?orthographize(syls):word.join('');
+        }
         if(!out||allPunct) out+=piece;
         else out+=' '+piece;
         pos+=word.length;
       });
       pyline.textContent=capitalizeFirst(out);
+      /* 把佔位符換成標紅的 xxxx（DOM 方式，才能上色） */
+      if(pyline.textContent.indexOf('MISS')>=0){
+        pyline.textContent='';
+        var txt=capitalizeFirst(out);
+        txt.split('\\u0000').forEach(function(seg){
+          if(seg==='MISS'){
+            var m=document.createElement('span');
+            m.className='tok miss';
+            m.textContent='xxxx';
+            pyline.appendChild(m);
+          }else if(seg!==''){
+            pyline.appendChild(document.createTextNode(seg));
+          }
+        });
+      }
+    } else if(!isSuhu()){
+      /* 非蘇滬混合腔：直接輸出字音站的音標（「輸出字音」模式） */
+      var pos3=0;
+      words.forEach(function(word){
+        var wspan=document.createElement('span');
+        wspan.className='tokword';
+        for(var i=0;i<word.length;i++){
+          var it=plan[pos3+i];
+          if(!it){ continue; }
+          if(!it.isHan){
+            var pp=document.createElement('span');
+            pp.className='punct-tok'; pp.textContent=it.ch;
+            wspan.appendChild(pp); continue;
+          }
+          var rr=it.res;
+          var ss=document.createElement('span');
+          ss.className='tok';
+          if(!rr.ok){
+            ss.classList.add('miss');
+            ss.textContent='xxxx0';
+          }else{
+            ss.textContent=rr.syl;
+            if(rr.multi){ ss.classList.add('var'); varCount++; }
+            if(picks[it.idx]) ss.classList.add('picked');
+            (function(ii,sx){ ss.onclick=function(ev){ ev.stopPropagation(); openPop(ii,sx); }; })(it.idx,ss);
+          }
+          wspan.appendChild(ss);
+        }
+        pyline.appendChild(wspan);
+        pos3+=word.length;
+      });
     } else {
       /* 帶調拼音：逐字輸出，可點 */
       var pos2=0;
@@ -1136,7 +1347,11 @@ function doConvert(){
           var r=it.res;
           var s=document.createElement('span');
           s.className='tok';
-          if(!r.ok){ s.classList.add('unk'); s.textContent=it.ch; }
+          if(!r.ok){
+            /* 該方言未收：拼音行顯示 xxxx0（標紅） */
+            s.classList.add('miss');
+            s.textContent='xxxx0';
+          }
           else{
             s.textContent=r.syl;
             if(r.multi){ s.classList.add('var'); varCount++; }
