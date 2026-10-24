@@ -287,10 +287,10 @@ BODY = r"""
 <header class="top">
   <div class="lang-switcher" id="langSwitcher">
     <button class="lang-btn" id="langBtn" onclick="toggleLang()">
-      <span id="langBtnLabel">吳語</span><span class="lang-caret" aria-hidden="true">▾</span>
+      <span id="langBtnLabel">漢語</span><span class="lang-caret" aria-hidden="true">▾</span>
     </button>
     <div class="lang-menu" id="langMenu">
-      <button class="lang-menu-item active" data-lang="wu" onclick="pickLang('wu')">吳語</button>
+      <button class="lang-menu-item active" data-lang="wu" onclick="pickLang('wu')">漢語</button>
       <button class="lang-menu-item" data-lang="en" onclick="pickLang('en')">English</button>
       <button class="lang-menu-item" data-lang="ja" onclick="pickLang('ja')">日本語</button>
     </div>
@@ -516,7 +516,7 @@ function applyLang(){
   document.getElementById('src').placeholder=t('hint');
   /* 語言按鈕標籤與選中態（與字音站一致） */
   var lbl=document.getElementById('langBtnLabel');
-  if(lbl) lbl.textContent = lang==='en'?'English':(lang==='ja'?'日本語':'吳語');
+  if(lbl) lbl.textContent = lang==='en'?'English':(lang==='ja'?'日本語':'漢語');
   document.querySelectorAll('.lang-menu-item').forEach(function(b){
     b.classList.toggle('active', b.dataset.lang===lang);
   });
