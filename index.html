@@ -818,6 +818,30 @@ function syncDialectUI(){
 function candidates(ch, wordHint){
   if(!isSuhu()){
     if(!DLDATA || !DLDATA.chars) return [];
+    /* 簡體輸入與蘇滬混合腔同一套折繁：查 VARIANTS.s2t 候選組（繁體在前），
+       只列該方言字表裡真的有收的繁體形；字表裡沒有任何對應繁體、
+       但簡體鍵本身有收（上游字表以簡體為鍵的字）時，退回本字。
+       「个不轉繁」這類例外**只屬蘇滬混合腔**（吳語裡个≠個）；
+       其餘四種方言照原始簡繁關係折繁 —— VARIANTS.s2t 對這類字存的是
+       恆等映射，改用 dict.json 的原始 s2t（个→個/箇）。 */
+    var grp=(VARIANTS && VARIANTS.s2t && VARIANTS.s2t[ch]) || null;
+    if(grp && RULES && RULES.noConvert && RULES.noConvert.indexOf(ch)>=0 &&
+       DICT && DICT.s2t && DICT.s2t[ch]){
+      var rawD=DICT.s2t[ch];
+      if(!Array.isArray(rawD)) rawD=[rawD];
+      if(!(rawD.length===1 && rawD[0]===ch)) grp=rawD;
+    }
+    if(grp && grp.length){
+      var outD=[], seenD={};
+      grp.forEach(function(trad){
+        var r2=DLDATA.chars[trad];
+        if(r2 && r2.length && !seenD[trad]){
+          seenD[trad]=1;
+          outD.push({ch:trad, readings:r2, converted:trad!==ch, from:ch});
+        }
+      });
+      if(outD.length) return outD;
+    }
     var rr=DLDATA.chars[ch];
     if(!rr || !rr.length) return [];
     return [{ch:ch, readings:rr}];
@@ -868,18 +892,24 @@ function candidates(ch, wordHint){
 
 /* 該字目前選定的讀音。wordHint = 該字所屬的詞（單字成詞就是它自己） */
 function resolve(ch,idx,wordHint){
-  /* 非蘇滬混合腔：原樣取字音站的音標，不做任何音系處理 */
+  /* 非蘇滬混合腔：原樣取字音站的音標，不做任何音系處理。
+     簡體輸入照樣先折繁（candidates 內處理），一簡多繁同樣標藍讓使用者挑。 */
   if(!isSuhu()){
     var dl=DLDATA;
     if(!dl || !dl.chars){ return {ok:false,ch:ch,dialect:DIALECT}; }
-    var rs=dl.chars[ch];
+    var dCands=candidates(ch, wordHint);
+    if(!dCands.length) return {ok:false,ch:ch,dialect:DIALECT};
+    var dp=picks[idx]||{};
+    var dCi=(dp.ci!==undefined && dp.ci<dCands.length)?dp.ci:0;
+    var rs=dCands[dCi].readings;
     if(!rs || !rs.length) return {ok:false,ch:ch,dialect:DIALECT};
-    var p=picks[idx]||{};
-    var ri=(p.ri!==undefined && p.ri<rs.length)?p.ri:0;
-    var rd=rs[ri];
-    return {ok:true, ch:ch, ci:0, ri:ri, readings:rs, cands:[{ch:ch,readings:rs}],
-            syl:rd[0], origSyl:rd[0], ipa:rd[0], note:rd[1]||'',
-            multi:(rs.length>1)};
+    var dRi=(dp.ri!==undefined && dp.ri<rs.length)?dp.ri:0;
+    var dRd=rs[dRi];
+    var dTotal=0;
+    for(var dc=0;dc<dCands.length;dc++){ dTotal+=dCands[dc].readings.length; }
+    return {ok:true, ch:dCands[dCi].ch, ci:dCi, ri:dRi, readings:rs, cands:dCands,
+            syl:dRd[0], origSyl:dRd[0], ipa:dRd[0], note:dRd[1]||'',
+            multi:(dTotal>1), dialect:DIALECT};
   }
   var cands=candidates(ch, wordHint);
   if(!cands.length) return {ok:false,ch:ch};
@@ -1669,15 +1699,21 @@ function openPop(idx,anchor){
     }
     cands.forEach(function(cand,ci){
       cand.readings.forEach(function(rd,ri){
-        var syl=rd[0], ipa=rd[1], note=rd[2]||'';
-        var pos=(DICT.pos&&DICT.pos[syl])||'';
+        /* 蘇滬混合腔的讀音是 [音節,音標,註記] 三元組；其餘四種方言是
+           [音標,註記] 兩元組（音標本身含調），欄位含義不同，分開渲染。 */
+        var isDl=!isSuhu();
+        var syl=isDl?null:rd[0];
+        var ipa=isDl?rd[0]:rd[1];
+        var note=isDl?(rd[1]||''):(rd[2]||'');
+        var pos=(!isDl && DICT.pos && DICT.pos[syl])||'';
         var row=document.createElement('div');
         row.className='row';
         if(ci===curCi&&ri===curRi) row.classList.add('sel');
-        var h='<span class="syl">'+esc(syl)+'</span>'
-            + '<span class="ipa">['+esc(ipa)+']</span>';
+        var h='';
+        if(!isDl) h+='<span class="syl">'+esc(syl)+'</span>';
+        h+='<span class="ipa">['+esc(ipa)+']</span>';
         if(pos) h+='<span class="pos">'+esc(pos)+'</span>';
-        if(!/[0-9]$/.test(syl)) h+='<span class="note">'+esc(t('note_untone'))+'</span>';
+        if(!isDl && !/[0-9]$/.test(syl)) h+='<span class="note">'+esc(t('note_untone'))+'</span>';
         /* 顯示這一條屬於哪個繁體形（簡體輸入時尤其必要） */
         if(cands.length>1 || cand.ch!==ch)
           h+='<span class="chtag">'+esc(cand.ch)+'</span>';
