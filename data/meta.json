@@ -1,14 +1,14 @@
 {
 "source":"https://siqyin.github.io/wugniu_zyinzozin/",
 "db_url":"https://siqyin.github.io/wugniu_zyinzozin/data/DB_suhu.json",
-"db_sha256":"78844b74565a3db39e7149f33b4f109b0fc5e8181d504a851186c11ada59093d",
+"db_sha256":"078ff8012845be5688ca6d480931d57c6d38f34f62e73915ca3e4a1cf6a8822e",
 "s2t_sha256":"3602d5a9c675d9bf90baa58f5a39081517c2eb05531c11a27f777325e4f4ea18",
 "pos_sha256":"078c3729503f7afac7ca1bf147a5268f8a15c5818d80bdf7c5beb92f7142a387",
 "stats":{
-"records":8240,
-"single_chars":8237,
+"records":8241,
+"single_chars":8238,
 "multi_char_entries":3,
-"readings":9858,
+"readings":9859,
 "distinct_tone_syllables":1201,
 "distinct_base_syllables":572,
 "positions":1200,
@@ -27,5 +27,5 @@
 "orphan_pos":[],
 "lexicon_words":32486
 },
-"upstream_sig":"1245423|Sat, 14 Nov 2026 10:12:14 GMT"
+"upstream_sig":"1245562|Sat, 14 Nov 2026 14:42:00 GMT"
 }
