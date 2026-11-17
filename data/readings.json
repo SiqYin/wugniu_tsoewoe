@@ -1007,6 +1007,15 @@
 "source":"db-order",
 "excluded_sh":[]
 },
+"錡":{
+"order":[
+"chi3",
+"ji6"
+],
+"chosen":"chi3",
+"source":"db-order",
+"excluded_sh":[]
+},
 "去":{
 "order":[
 "chi5",
