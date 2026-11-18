@@ -7286,6 +7286,15 @@
 "source":"db-order",
 "excluded_sh":[]
 },
+"謏":{
+"order":[
+"siau3",
+"seu3"
+],
+"chosen":"siau3",
+"source":"db-order",
+"excluded_sh":[]
+},
 "姣":{
 "order":[
 "ciau1",
