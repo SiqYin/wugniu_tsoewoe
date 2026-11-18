@@ -10734,6 +10734,15 @@
 "source":"db-order",
 "excluded_sh":[]
 },
+"邡":{
+"order":[
+"faon1",
+"faon5"
+],
+"chosen":"faon1",
+"source":"db-order",
+"excluded_sh":[]
+},
 "當":{
 "order":[
 "taon1",
