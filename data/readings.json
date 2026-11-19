@@ -2716,6 +2716,15 @@
 "source":"db-order",
 "excluded_sh":[]
 },
+"犓":{
+"order":[
+"tshu1",
+"tshou1"
+],
+"chosen":"tshu1",
+"source":"db-order",
+"excluded_sh":[]
+},
 "楚":{
 "order":[
 "tshu3",
