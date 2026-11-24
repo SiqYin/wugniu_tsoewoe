@@ -12994,6 +12994,15 @@
 "source":"db-order",
 "excluded_sh":[]
 },
+"欏":{
+"order":[
+"lu2",
+"lou2"
+],
+"chosen":"lu2",
+"source":"db-order",
+"excluded_sh":[]
+},
 "苽":{
 "order":[
 "ku1",
